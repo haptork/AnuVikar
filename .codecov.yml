@@ -1,0 +1,5 @@
+ignore:
+  - "third_party/*" # ignoring catch, clipp and disjoint-set
+  - "src/main.cpp"  # ignoring for only boilerplate 
+  - "src/printJson.cpp" # ignoring for only printing boilerplate 
+  - "include/printJson.hpp" # ignoring for only printing boilerplate 
