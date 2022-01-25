@@ -20,17 +20,17 @@ enum class frameStatus : bool { prelude, inFrame };
 
 enum class lineStatus : int { garbage, coords, inFrameCoords, frameBorder };
 
-std::pair<avi::lineStatus, avi::Coords>
+std::tuple<avi::lineStatus, avi::Coords, std::vector<double>>
 getCoord(const std::string &line, const avi::frameStatus &fs,
          const avi::InputInfo &info, const avi::ExtraInfo &ei);
 
-std::pair<avi::lineStatus, avi::Coords>
+std::tuple<avi::lineStatus, avi::Coords, std::vector<double>>
 getCoordLammps(const std::string &line, const avi::frameStatus &fs, int);
 
-std::pair<avi::lineStatus, avi::Coords>
+std::tuple<avi::lineStatus, avi::Coords, std::vector<double>>
 getCoordParcas(const std::string &line, const avi::frameStatus &fs, int);
 
-std::pair<avi::lineStatus, std::array<avi::Coords, 2>>
+std::tuple<avi::lineStatus, std::array<avi::Coords, 2>, std::vector<double>>
 getCoordDisplaced(const std::string &line);
 
 } // namespace avi

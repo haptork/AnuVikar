@@ -5,14 +5,17 @@
  * */
 
 #include <string>
+#include <vector>
+#include <tuple>
 
 #include <cluster2features.hpp>
 #include <helper.hpp>
 #include <xyzReader.hpp>
 
-std::pair<avi::lineStatus, avi::Coords>
+std::tuple<avi::lineStatus, avi::Coords, std::vector<double>>
 getCoordGeneric(const std::string &line, const avi::frameStatus &fs, int columnStart) {
   avi::Coords c;
+  std::vector<double> ec;
   auto first = std::begin(line);
   auto second = std::begin(line);
   for (auto i = 1; i < columnStart; ++i) {
@@ -21,7 +24,7 @@ getCoordGeneric(const std::string &line, const avi::frameStatus &fs, int columnS
     second =
         std::find_if(first, end(line), [](int ch) { return std::isspace(ch); });
     if (first >= second) {
-      return std::make_pair(avi::lineStatus::frameBorder, c);
+      return std::make_tuple(avi::lineStatus::frameBorder, c, ec);
     }
   }
   const auto maxTry = columnStart > 0 ? 3 : avi::maxColumnsTry;  // if column start is given then three index after that are coordinates else try max
@@ -31,8 +34,8 @@ getCoordGeneric(const std::string &line, const avi::frameStatus &fs, int columnS
     second =
         std::find_if(first, end(line), [](int ch) { return std::isspace(ch); });
     if (first >= second) {
-      if (i > 2) return std::make_pair(avi::lineStatus::coords, c);
-      return std::make_pair(avi::lineStatus::frameBorder, c);
+      if (i > 2) return std::make_tuple(avi::lineStatus::coords, c, ec);
+      return std::make_tuple(avi::lineStatus::frameBorder, c, ec);
     }
     try {
       auto curVal = std::stod(std::string{first, second});
@@ -42,25 +45,26 @@ getCoordGeneric(const std::string &line, const avi::frameStatus &fs, int columnS
         c[i] = curVal;
       }
     } catch (const std::invalid_argument &) {
-      return std::make_pair(avi::lineStatus::frameBorder, c);
+      return std::make_tuple(avi::lineStatus::frameBorder, c, ec);
     } catch (const std::out_of_range &) {
-      return std::make_pair(avi::lineStatus::frameBorder, c);
+      return std::make_tuple(avi::lineStatus::frameBorder, c, ec);
     }
   }
   //std::cout << "from c: ";
   //std::cout << c[0] << ", " << c[1] << ", " << c[2] << '\n';
-  return std::make_pair(avi::lineStatus::coords, c);
+  return std::make_tuple(avi::lineStatus::coords, c, ec);
 }
 
-std::pair<avi::lineStatus, avi::Coords>
+std::tuple<avi::lineStatus, avi::Coords, std::vector<double>>
 getCoordCdb(const std::string &line, const avi::frameStatus &fs,
              const std::string &substrate, int columnStart) {
   using avi::lineStatus;
   avi::Coords c;
+  std::vector<double> ec;
   auto first = std::find_if(begin(line), end(line),
                             [](int ch) { return !std::isspace(ch); });
   if (first == std::end(line))
-    return std::make_pair(lineStatus::garbage, c); // possibly blank line
+    return std::make_tuple(lineStatus::garbage, c, ec); // possibly blank line
   auto second =
       std::find_if(first, end(line), [](int ch) { return std::isspace(ch); });
   std::string word{first, second};
@@ -68,12 +72,12 @@ getCoordCdb(const std::string &line, const avi::frameStatus &fs,
     // we can return garbage here and continue with adding in the same frame
     // however frameBorder is assumed for anything else to handle the files with
     // multiple frames.
-    return std::make_pair(lineStatus::frameBorder, c);
+    return std::make_tuple(lineStatus::frameBorder, c, ec);
   }
   for (auto i = 0; i < word.size(); i++) {
     if (std::tolower(word[i]) != std::tolower(substrate[i])) {
       // we can return garbage here ...
-      return std::make_pair(lineStatus::frameBorder, c);
+      return std::make_tuple(lineStatus::frameBorder, c, ec);
     }
   }
   if (columnStart <= 1) columnStart = 2;
@@ -82,27 +86,26 @@ getCoordCdb(const std::string &line, const avi::frameStatus &fs,
                          [](int ch) { return !std::isspace(ch); });
     second =
         std::find_if(first, end(line), [](int ch) { return std::isspace(ch); });
-    if (first >= second) return std::make_pair(lineStatus::garbage, c);
+    if (first >= second) return std::make_tuple(lineStatus::garbage, c, ec);
   }
   for (int i = 0; i < 3 && first < second; ++i) {
     try {
       c[i] = std::stod(std::string{first, second});
     } catch (const std::invalid_argument &) {
-      return std::make_pair(lineStatus::garbage, c);
+      return std::make_tuple(lineStatus::garbage, c, ec);
     } catch (const std::out_of_range &) {
-      return std::make_pair(lineStatus::garbage, c);
+      return std::make_tuple(lineStatus::garbage, c, ec);
     }
     first = std::find_if(second, end(line),
                          [](int ch) { return !std::isspace(ch); });
     second =
         std::find_if(first, end(line), [](int ch) { return std::isspace(ch); });
-    if (first >= second && i < 2) return std::make_pair(lineStatus::garbage, c);
-
+    if (first >= second && i < 2) return std::make_tuple(lineStatus::garbage, c, ec);
   }
-  return std::make_pair(lineStatus::inFrameCoords, c);
+  return std::make_tuple(lineStatus::inFrameCoords, c, ec);
 }
 
-std::pair<avi::lineStatus, avi::Coords>
+std::tuple<avi::lineStatus, avi::Coords, std::vector<double>>
 avi::getCoord(const std::string &line, const avi::frameStatus &fs,
                    const avi::InputInfo &info,
                    const avi::ExtraInfo &extraInfo) {
@@ -115,20 +118,21 @@ avi::getCoord(const std::string &line, const avi::frameStatus &fs,
                       : getCoordGeneric(line, fs, info.xyzColumnStart);
 }
 
-std::pair<avi::lineStatus, avi::Coords>
+std::tuple<avi::lineStatus, avi::Coords, std::vector<double>>
 avi::getCoordLammps(const std::string &line,
                          const avi::frameStatus &fs, int columnStart) {
   avi::Coords c;
+  std::vector<double> ec;
   auto first = std::find_if(begin(line), end(line),
                             [](int ch) { return !std::isspace(ch); });
   if (first == std::end(line))
-    return std::make_pair(avi::lineStatus::garbage,
-                          c); // possibly blank line
+    return std::make_tuple(avi::lineStatus::garbage,
+                          c, ec); // possibly blank line
   auto second =
       std::find_if(first, end(line), [](int ch) { return std::isspace(ch); });
   std::string word{first, second};
   if (word == "ITEM:" || word == "TIMESTEP:") {
-    return std::make_pair(avi::lineStatus::frameBorder, c);
+    return std::make_tuple(avi::lineStatus::frameBorder, c, ec);
   }
   if (fs != avi::frameStatus::inFrame) { // Not checking always in favor of
                                               // efficiency but if the xyz file
@@ -139,7 +143,7 @@ avi::getCoordLammps(const std::string &line,
     while (first_temp != std::end(line) && first_temp < second_temp) {
       std::string word{first_temp, second_temp};
       if (word == "ITEM:" || word == "TIMESTEP:")
-        return std::make_pair(avi::lineStatus::frameBorder, c);
+        return std::make_tuple(avi::lineStatus::frameBorder, c, ec);
       first_temp = std::find_if(second_temp, end(line),
                                 [](int ch) { return !std::isspace(ch); });
       second_temp = std::find_if(first_temp, end(line),
@@ -152,7 +156,7 @@ avi::getCoordLammps(const std::string &line,
     second =
         std::find_if(first, end(line), [](int ch) { return std::isspace(ch); });
     if (first >= second) {
-      return std::make_pair(avi::lineStatus::garbage, c);
+      return std::make_tuple(avi::lineStatus::garbage, c, ec);
     }
   }
   auto maxTry = columnStart > 0 ? 3 : avi::maxColumnsTry;  // if column start is given then three index after that are coordinates else try max
@@ -176,27 +180,28 @@ avi::getCoordLammps(const std::string &line,
     second =
         std::find_if(first, end(line), [](int ch) { return std::isspace(ch); });
   }
-  if (curColumn > 2) return std::make_pair(avi::lineStatus::coords, c);
-  return std::make_pair(avi::lineStatus::garbage, c);
+  if (curColumn > 2) return std::make_tuple(avi::lineStatus::coords, c);
+  return std::make_tuple(avi::lineStatus::garbage, c, ec);
 }
 
-std::pair<avi::lineStatus, avi::Coords>
+std::tuple<avi::lineStatus, avi::Coords, std::vector<double>>
 avi::getCoordParcas(const std::string &line,
                          const avi::frameStatus &fs, int columnStart) {
   avi::Coords c;
+  std::vector<double> ec;
   auto first = std::find_if(begin(line), end(line),
                             [](int ch) { return !std::isspace(ch); });
   if (first == std::end(line))
-    return std::make_pair(avi::lineStatus::garbage,
-                          c); // possibly blank line
+    return std::make_tuple(avi::lineStatus::garbage,
+                          c, ec); // possibly blank line
   if (std::isdigit(*first) && columnStart != 1)
-    return std::make_pair(avi::lineStatus::garbage,
-                          c); // possibly first line with frame number
+    return std::make_tuple(avi::lineStatus::garbage,
+                          c, ec); // possibly first line with frame number
   auto second =
       std::find_if(first, end(line), [](int ch) { return std::isspace(ch); });
   std::string word{first, second};
   if (word == "Frame" || word == "boxsize") {
-    return std::make_pair(avi::lineStatus::frameBorder, c);
+    return std::make_tuple(avi::lineStatus::frameBorder, c, ec);
   }
   if (columnStart == 0) columnStart = 2;
   for (auto i = 2; i < columnStart; ++i) {
@@ -205,7 +210,7 @@ avi::getCoordParcas(const std::string &line,
     second =
         std::find_if(first, end(line), [](int ch) { return std::isspace(ch); });
     if (first >= second) {
-      return std::make_pair(avi::lineStatus::garbage, c);
+      return std::make_tuple(avi::lineStatus::garbage, c, ec);
     }
   }
   int start = 0;
@@ -213,9 +218,9 @@ avi::getCoordParcas(const std::string &line,
     try {
       c[0] = std::stod(word);
     } catch (const std::invalid_argument &) {
-      return std::make_pair(avi::lineStatus::garbage, c);
+      return std::make_tuple(avi::lineStatus::garbage, c, ec);
     } catch (const std::out_of_range &) {
-      return std::make_pair(avi::lineStatus::garbage, c);
+      return std::make_tuple(avi::lineStatus::garbage, c, ec);
     }
     start = 1;
   }
@@ -226,8 +231,8 @@ avi::getCoordParcas(const std::string &line,
     second =
         std::find_if(first, end(line), [](int ch) { return std::isspace(ch); });
     if (first >= second) {
-      if (i > 2) return std::make_pair(avi::lineStatus::coords, c);
-      return std::make_pair(avi::lineStatus::garbage, c);
+      if (i > 2) return std::make_tuple(avi::lineStatus::coords, c, ec);
+      return std::make_tuple(avi::lineStatus::garbage, c, ec);
     }
     try {
       auto curVal = std::stod(std::string{first, second});
@@ -237,22 +242,23 @@ avi::getCoordParcas(const std::string &line,
         c[i] = curVal;
       }
     } catch (const std::invalid_argument &) {
-      return std::make_pair(avi::lineStatus::garbage, c);
+      return std::make_tuple(avi::lineStatus::garbage, c, ec);
     } catch (const std::out_of_range &) {
-      return std::make_pair(avi::lineStatus::garbage, c);
+      return std::make_tuple(avi::lineStatus::garbage, c, ec);
     }
   }
-  return std::make_pair(avi::lineStatus::coords, c);
+  return std::make_tuple(avi::lineStatus::coords, c, ec);
 }
 
-std::pair<avi::lineStatus, std::array<avi::Coords, 2>>
+std::tuple<avi::lineStatus, std::array<avi::Coords, 2>, std::vector<double>>
 avi::getCoordDisplaced(const std::string &line) {
   std::array<avi::Coords, 2> c;
+  std::vector<double> ec;
   auto first = std::find_if(begin(line), end(line),
                             [](int ch) { return !std::isspace(ch); });
   if (first == std::end(line))
-    return std::make_pair(avi::lineStatus::garbage,
-                          c); // possibly blank line
+    return std::make_tuple(avi::lineStatus::garbage,
+                          c, ec); // possibly blank line
   auto second =
       std::find_if(first, end(line), [](int ch) { return std::isspace(ch); });
   std::string word{first, second};
@@ -261,9 +267,9 @@ avi::getCoordDisplaced(const std::string &line) {
     second = std::find_if(first, end(line), [](int ch) { return std::isspace(ch); });
     word = std::string{first, second};
     if (word == "ENTRIES") {
-      return std::make_pair(avi::lineStatus::frameBorder, c);
+      return std::make_tuple(avi::lineStatus::frameBorder, c, ec);
     } else {
-      return std::make_pair(avi::lineStatus::garbage, c);
+      return std::make_tuple(avi::lineStatus::garbage, c, ec);
     }
   }
   for (auto j = 0; j < 2; ++j)
@@ -273,14 +279,14 @@ avi::getCoordDisplaced(const std::string &line) {
       second = std::find_if(first, end(line),
                             [](int ch) { return std::isspace(ch); });
       if (first >= second)
-        return std::make_pair(avi::lineStatus::garbage, c);
+        return std::make_tuple(avi::lineStatus::garbage, c, ec);
       try {
         c[j][i] = std::stod(std::string{first, second});
       } catch (const std::invalid_argument &) {
-        return std::make_pair(avi::lineStatus::garbage, c);
+        return std::make_tuple(avi::lineStatus::garbage, c, ec);
       } catch (const std::out_of_range &) {
-        return std::make_pair(avi::lineStatus::garbage, c);
+        return std::make_tuple(avi::lineStatus::garbage, c, ec);
       }
     }
-  return std::make_pair(avi::lineStatus::coords, c);
+  return std::make_tuple(avi::lineStatus::coords, c, ec);
 }

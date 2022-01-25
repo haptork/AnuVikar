@@ -86,7 +86,7 @@ auto existAnchorInter(
 // sets the surviving flag of an interstitial and vacancy if they are closer
 // than a threshold
 auto clean(
-    std::vector<std::tuple<avi::Coords, avi::Coords, bool>> &inter,
+    std::vector<std::tuple<avi::Coords, avi::Coords, bool, size_t>> &inter,
     std::vector<std::tuple<avi::Coords, bool>> &vac, double latticeConst) {
   const auto &thresh = latticeConst; // * sqrt(3) / 2;
   for (size_t i = 0; i < vac.size(); ++i) {
@@ -155,7 +155,7 @@ getDisplacedAtomsTime(avi::InputInfo &info, avi::ExtraInfo &extraInfo,
   return res;
 }
 
-std::pair<avi::xyzFileStatus, std::vector<std::tuple<avi::Coords, double, avi::Coords>>>
+std::pair<avi::xyzFileStatus, std::vector<avi::offsetCoords>>
 getAtomsTime(avi::InputInfo &info, avi::ExtraInfo &extraInfo,
          const avi::Config &config, std::istream &infile, avi::frameStatus &fs) {
   using avi::Coords;
@@ -166,17 +166,19 @@ getAtomsTime(avi::InputInfo &info, avi::ExtraInfo &extraInfo,
   using std::vector;
   vector<Coords>
       atoms; // for all the atoms along with nearest closest sites and offset
-  std::pair<avi::xyzFileStatus, vector<tuple<Coords, double, Coords>>>
+  std::pair<avi::xyzFileStatus, vector<avi::offsetCoords>>
       res; // for all the atoms along with nearest closest sites and offset
   const auto &latConst = info.latticeConst;
   if (info.ncell > 0) atoms.reserve(info.ncell * info.ncell * info.ncell * 2);
   std::string line;
   // read file and apply object
   Coords c;
+  std::vector<double> ec;
   avi::lineStatus ls;
   res.first = avi::xyzFileStatus::eof;
   while (std::getline(infile, line)) {
-    std::tie(ls, c) = avi::getCoord(line, fs, info, extraInfo);
+    std::tie(ls, c, ec) = avi::getCoord(line, fs, info, extraInfo);
+    // TODO: add ec to props
     if (ls == avi::lineStatus::coords &&
         fs == avi::frameStatus::inFrame) {
       atoms.emplace_back(c);
@@ -392,8 +394,6 @@ avi::Coords avi::getInitialMaxFcc(const avi::Coords &origin,
   return maxes1;
 }
 
-
-
 void setCenter(avi::ExtraInfo &extraInfo, avi::Coords minC,
                avi::Coords maxC, double latConst) {
   if (!extraInfo.isPkaGiven) {
@@ -439,17 +439,18 @@ avi::DefectRes avi::atoms2defects(
    // avi::Logger::inst().log_debug("Max: " + strAr(lastRow) + " coord: " +
    // strAr(std::get<2>(*minmax.second)));
    //avi::NextExpected nextExpected2{firstRow, maxes, maxesInitial}; testIt(atoms, nextExpected2);
-  std::tuple<double, Coords, Coords> pre;
+  std::tuple<double, Coords, Coords, size_t> pre;
   bool isPre = false;
   const auto latConst = info.latticeConst;
   const auto thresh = getThresh(
       info, config.thresholdFactor); // for rough interstitial threshold
-  vector<tuple<double, Coords, Coords>>
+  vector<tuple<double, Coords, Coords, size_t>>
       interThresh; // interstitials based on rough thresh
-  vector<tuple<Coords, Coords, bool>> interstitials;
+  vector<tuple<Coords, Coords, bool, size_t>> interstitials;
   vector<tuple<Coords, bool>> vacancies;
   std::vector<int> vacSias;
-  vector<tuple<Coords, Coords, bool>> freeInterstitials;
+  std::vector<size_t> ids;
+  vector<tuple<Coords, Coords, bool, size_t>> freeInterstitials;
   const auto boundaryThresh = (config.isIgnoreBoundaryDefects) ? 0.501 : 0.00;
   auto boundaryPred = [](Coords ar, Coords min, Coords max, double thresh) {
     for (size_t i = 0; i < ar.size(); i++) {
@@ -465,18 +466,19 @@ avi::DefectRes avi::atoms2defects(
     Coords ar = get<0>(row);
     double curOffset = get<1>(row);
     Coords c = std::get<2>(row);
+    size_t id = std::get<3>(row);
     const auto cmpRes = cmpApprox(ar, nextExpected.cur());
     if (nextExpected.allMax()) break;
     // threshold
     // std::cout << ar[0] << ", " << config.isAddThresholdDefects << '\n';
     if (config.isAddThresholdDefects && curOffset > thresh) {
-      interThresh.emplace_back(curOffset, ar, c);
+      interThresh.emplace_back(curOffset, ar, c, get<3>(row));
     }
     // clean
     using vecB = std::vector<std::tuple<Coords, double, Coords>>;
     if (cmpRes == 0) { // atom at correct lattice site
       nextExpected.increment();
-      pre = std::make_tuple(curOffset, ar, c);
+      pre = std::make_tuple(curOffset, ar, c, id);
       isPre = true;
     } else if (cmpRes > 0) { // at site after expected
       vecB res;
@@ -507,19 +509,19 @@ avi::DefectRes avi::atoms2defects(
         auto isPreReal = std::get<0>(pre) > curOffset;
         vacancies.emplace_back(ar, false); // dummy vacancy added
         interstitials.emplace_back(std::get<1>(pre), std::get<2>(pre),
-                                   isPreReal);
+                                   isPreReal, std::get<3>(pre));
         interstitials.emplace_back(
             ar, c,
-            !isPreReal); // both interstitials for structures like dumbbells
+            !isPreReal, id); // both interstitials for structures like dumbbells
         vacSias.push_back(interstitials.size());
       } else {
         if (boundaryPred(ar, nextExpected.minCur(), nextExpected.maxCur(),
                          boundaryThresh) == false) {
           if (vacSias.size() > 0 && cmpApprox(std::get<1>(pre), ar) == 0) {
-            interstitials.emplace_back(ar, c, true);
+            interstitials.emplace_back(ar, c, true, id);
             vacSias[vacSias.size() - 1] = interstitials.size();
           } else {
-            freeInterstitials.emplace_back(ar, c, true);
+            freeInterstitials.emplace_back(ar, c, true, id);
             // std::cout << "\n interstitial wo pre: " << c[0] << c[1] << c[2] << std::endl; 
           }
         }
@@ -531,7 +533,7 @@ avi::DefectRes avi::atoms2defects(
             "wrong inputs like latticeConst, boxDim or corrupt xyz file. "
             "(i): " +
             std::to_string(interstitials.size()));
-        return std::make_tuple(stAtoms.first, ErrorStatus::siaOverflow, DefectVecT{}, vector<int>{});
+        return std::make_tuple(stAtoms.first, ErrorStatus::siaOverflow, DefectVecT{}, vector<int>{}, ids);
       }
       isPre = false;
     }
@@ -555,7 +557,7 @@ avi::DefectRes avi::atoms2defects(
           std::to_string(interstitials.size()) + ", " +
           std::to_string(vacancies.size()) + ", " +
           std::to_string(interThresh.size()));
-      return std::make_tuple(stAtoms.first, ErrorStatus::threshOverflow, DefectVecT{}, vector<int>{});
+      return std::make_tuple(stAtoms.first, ErrorStatus::threshOverflow, DefectVecT{}, vector<int>{}, ids);
     }
     if (interstitials.size() != vacancies.size()) {
       if ((int(interstitials.size()) / int(vacancies.size())) > extraFactor) {
@@ -583,7 +585,7 @@ avi::DefectRes avi::atoms2defects(
             std::to_string(interstitials.size()) + ", " +
             std::to_string(vacancies.size()) + ", " +
             std::to_string(interThresh.size()));
-        return std::make_tuple(stAtoms.first, ErrorStatus::siaVacDiffOverflow, DefectVecT{}, vector<int>{});
+        return std::make_tuple(stAtoms.first, ErrorStatus::siaVacDiffOverflow, DefectVecT{}, vector<int>{}, ids);
       }
     }
   }
@@ -631,6 +633,7 @@ avi::DefectRes avi::atoms2defects(
       //std::cout << j << ", ";
       auto &jt = interstitials[j];
       defects.emplace_back(std::move(get<1>(jt)), true, count++, get<2>(jt));
+      ids.emplace_back(get<3>(jt));
     }
     //std::cout << '\n';
     vacSiasNu.push_back(defects.size());
@@ -656,11 +659,13 @@ avi::DefectRes avi::atoms2defects(
       defects.emplace_back(anchor2coord(std::move(get<1>(it))), false, count++,
                            false);
       defects.emplace_back(std::move(get<2>(it)), true, count++, false);
+      ids.emplace_back(get<3>(it));
       vacSiasNu.emplace_back(defects.size());
     }
   }
   for (const auto &jt : freeInterstitials) {
     defects.emplace_back(std::move(get<1>(jt)), true, count++, get<2>(jt));
+    ids.emplace_back(get<3>(jt));
   }
   if (config.safeRunChecks && extraDefects > interstitials.size()) {
 
@@ -679,7 +684,7 @@ avi::DefectRes avi::atoms2defects(
           std::to_string(extraDefects));
     }
   }
-  return std::make_tuple(stAtoms.first, ErrorStatus::noError, std::move(defects), std::move(vacSiasNu));
+  return std::make_tuple(stAtoms.first, ErrorStatus::noError, std::move(defects), std::move(vacSiasNu), std::move(ids)));
 }
 
 avi::DefectRes avi::atoms2defectsFcc(

@@ -101,7 +101,7 @@ template <class T> void print(std::array<T, 3> x) {
 }
 
 // constexpr bool debug = false;
-std::tuple<std::array<double, 3>, double, std::array<double, 3>>
+std::tuple<std::array<double, 3>, double, std::array<double, 3>, size_t>
 avi::AddOffset::operator()(const std::array<double, 3> &c) {
   std::array<long double, 3> coords{{c[0], c[1], c[2]}};
   std::array<long double, 3> modCoords;
@@ -127,5 +127,5 @@ avi::AddOffset::operator()(const std::array<double, 3> &c) {
       }
     }
   }
-  return std::make_tuple(cellPos, min, c);
+  return std::make_tuple(cellPos, min, c, id++);
 }

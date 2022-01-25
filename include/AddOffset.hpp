@@ -12,7 +12,7 @@
 
 namespace avi {
 
-using offsetCoords = std::tuple<std::array<double, 3>, double, std::array<double, 3>>;
+using offsetCoords = std::tuple<std::array<double, 3>, double, std::array<double, 3>, size_t>;
 
 class AddOffset {
 public:
@@ -32,6 +32,7 @@ private:
   std::array<long double, 3> _origin;
   long double _latConst;
   long double roundOffTo = 10000.0;
+  size_t id {0};
 };
 } // namespace avi
 

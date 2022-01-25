@@ -22,7 +22,7 @@ using DefectT = std::tuple<std::array<double, 3>, bool, int, bool>;
 using DefectVecT =
     std::vector<std::tuple<std::array<double, 3>, bool, int, bool>>;
 
-using DefectRes = std::tuple<xyzFileStatus, ErrorStatus, DefectVecT, std::vector<int>>;
+using DefectRes = std::tuple<xyzFileStatus, ErrorStatus, DefectVecT, std::vector<int>, std::vector<size_t>>;
 
 struct ClusterSizeT {
   int surviving;
