@@ -180,7 +180,7 @@ avi::getCoordLammps(const std::string &line,
     second =
         std::find_if(first, end(line), [](int ch) { return std::isspace(ch); });
   }
-  if (curColumn > 2) return std::make_tuple(avi::lineStatus::coords, c);
+  if (curColumn > 2) return std::make_tuple(avi::lineStatus::coords, c, ec);
   return std::make_tuple(avi::lineStatus::garbage, c, ec);
 }
 
@@ -253,7 +253,7 @@ avi::getCoordParcas(const std::string &line,
 std::tuple<avi::lineStatus, std::array<avi::Coords, 2>, std::vector<double>>
 avi::getCoordDisplaced(const std::string &line) {
   std::array<avi::Coords, 2> c;
-  std::vector<double> ec;
+  std::vector<double> ec; // extra columns
   auto first = std::find_if(begin(line), end(line),
                             [](int ch) { return !std::isspace(ch); });
   if (first == std::end(line))

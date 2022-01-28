@@ -59,6 +59,7 @@ struct resultsT {
   double inClusterFractionV;
   DefectVecT defects;
   std::vector<int> coDefects;
+  std::vector<size_t> extraCols;
   std::array<std::vector<double>, 2> dists;
   std::array<std::vector<double>, 2> angles;
   std::unordered_map<int, std::vector<int>> clusters;

@@ -33,10 +33,7 @@ DefectRes displaced2defectsTime(InputInfo &mainInfo, ExtraInfo &extraInfo,
                       const Config &config, std::istream &infile, frameStatus &fs);
 
 DefectRes atoms2defects(std::pair<xyzFileStatus, std::vector<offsetCoords>> atoms,
-              InputInfo &info, ExtraInfo &extraInfo, const Config &config);
-
-DefectRes atoms2defectsFcc(std::pair<xyzFileStatus, std::vector<offsetCoords>> atoms,
-              InputInfo &info, ExtraInfo &extraInfo, const Config &config);
+              InputInfo &info, ExtraInfo &extraInfo, const Config &config, bool isBcc);
 
 DefectRes displacedAtoms2defects(std::pair<xyzFileStatus, std::array<std::vector<Coords>, 2>> d,
                            double lc);

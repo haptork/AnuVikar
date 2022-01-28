@@ -100,7 +100,7 @@ std::pair<avi::xyzFileStatus, avi::ErrorStatus>
   auto res = avi::resultsT{};
   //res.err = avi::ErrorStatus::noError;
   avi::xyzFileStatus fl;
-  std::tie(fl, res.err, res.defects, res.coDefects) = 
+  std::tie(fl, res.err, res.defects, res.coDefects, res.extraCols) = 
       (info.xyzFileType == avi::XyzFileType::lammpsDisplacedCompute)
           ? avi::displaced2defectsTime(info, extraInfo, config, infile, fs)
           : avi::xyz2defectsTime(info, extraInfo, config, infile, fs);

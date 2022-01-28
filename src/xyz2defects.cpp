@@ -124,6 +124,7 @@ getDisplacedAtomsTime(avi::InputInfo &info, avi::ExtraInfo &extraInfo,
   std::string line;
   // read file and apply object
   std::array<avi::Coords, 2> c;
+  std::vector<double> ec;
   avi::lineStatus ls;
   auto origin = std::array<double,3>{{info.originX, info.originY, info.originZ}};
   auto latConst = info.latticeConst;
@@ -131,7 +132,7 @@ getDisplacedAtomsTime(avi::InputInfo &info, avi::ExtraInfo &extraInfo,
   auto fn = [&latConst] (double x) { return x * latConst; };
   res.first = avi::xyzFileStatus::eof;
   while (std::getline(infile, line)) {
-    std::tie(ls, c) = avi::getCoordDisplaced(line);
+    std::tie(ls, c, ec) = avi::getCoordDisplaced(line);
     if (ls == avi::lineStatus::coords &&
         fs == avi::frameStatus::inFrame) {
       auto vacC = std::get<0>(obj(c[0]));
@@ -311,8 +312,8 @@ avi::xyz2defectsTime(avi::InputInfo &mainInfo,
   //std::cout << "\natoms: " << atoms.second.size() << '\n';
   //std::cout << "\nxyzCol: " << mainInfo.xyzColumnStart << '\n';
   if (atoms.second.empty())
-    return std::make_tuple(atoms.first, ErrorStatus::xyzFileReadError, avi::DefectVecT{}, std::vector<int>{});
-  return (mainInfo.structure == "bcc") ? avi::atoms2defects(atoms, mainInfo, extraInfo, config) : avi::atoms2defectsFcc(atoms, mainInfo, extraInfo, config);
+    return std::make_tuple(atoms.first, ErrorStatus::xyzFileReadError, avi::DefectVecT{}, std::vector<int>{}, std::vector<size_t>{});
+  return  atoms2defects(atoms, mainInfo, extraInfo, config, (mainInfo.structure == "bcc"));
 }
 
 avi::DefectRes
@@ -321,7 +322,7 @@ avi::displaced2defectsTime(avi::InputInfo &mainInfo,
                       const avi::Config &config, std::istream &infile, avi::frameStatus &fs) {
   auto atoms = getDisplacedAtomsTime(mainInfo, extraInfo, config, infile, fs);
   if (atoms.second.empty())
-    return std::make_tuple(atoms.first, ErrorStatus::noError, avi::DefectVecT{}, std::vector<int>{});
+    return std::make_tuple(atoms.first, ErrorStatus::noError, avi::DefectVecT{}, std::vector<int>{}, std::vector<size_t>{});
   return avi::displacedAtoms2defects(atoms, mainInfo.latticeConst);
 }
 
@@ -403,14 +404,10 @@ void setCenter(avi::ExtraInfo &extraInfo, avi::Coords minC,
   }
 }
 
-// implements an O(log(N)) algorithm for detecting defects given a
-// single frame file having xyz coordinates of all the atoms and input
-// information
-// Can be improved to O(N) as given here: https://arxiv.org/abs/1811.10923
 avi::DefectRes avi::atoms2defects(
     std::pair<avi::xyzFileStatus, std::vector<avi::offsetCoords>> stAtoms,
     avi::InputInfo &info, avi::ExtraInfo &extraInfo,
-    const avi::Config &config) {
+    const avi::Config &config, bool isBcc) {
   using avi::Coords;
   using std::get;
   using std::tuple;
@@ -427,18 +424,11 @@ avi::DefectRes avi::atoms2defects(
   auto firstRow = std::get<0>(*(minmax.first));
   auto lastRow = std::get<0>(*(minmax.second));
   auto maxes = lastRow;
-  auto maxesInitial = avi::getInitialMax(firstRow, maxes);
-  // avi::Logger::inst().log_debug("Atoms: " + std::to_string(atoms.size()));
-  // std::cout << "\nfirstRow: " << firstRow[0] << '\n';
-  // std::cout << "\nmaxes: " << maxes[0] << ", " << maxes[1] << ", " << maxes[2] << '\n';
-  // std::cout << "\nmaxesInitial: " << maxesInitial[0] << ", " << maxesInitial[1] << ", " << maxesInitial[2] << '\n';
-  avi::NextExpected nextExpected{firstRow, maxes, maxesInitial};
+  auto maxesInitial = (isBcc) ? avi::getInitialMax(firstRow, maxes)
+                              : avi::getInitialMaxFcc(firstRow, maxes);
+  auto maxesFinal = (isBcc) ? maxes : maxesInitial;
+  avi::NextExpected nextExpected{firstRow, maxes, maxesInitial, maxesFinal};
   setCenter(extraInfo, firstRow, lastRow, info.latticeConst);
-   // avi::Logger::inst().log_debug("Min: " + strAr(firstRow) + " coord: " +
-   // strAr(std::get<2>(*minmax.first)));
-   // avi::Logger::inst().log_debug("Max: " + strAr(lastRow) + " coord: " +
-   // strAr(std::get<2>(*minmax.second)));
-   //avi::NextExpected nextExpected2{firstRow, maxes, maxesInitial}; testIt(atoms, nextExpected2);
   std::tuple<double, Coords, Coords, size_t> pre;
   bool isPre = false;
   const auto latConst = info.latticeConst;
@@ -477,7 +467,7 @@ avi::DefectRes avi::atoms2defects(
     // clean
     using vecB = std::vector<std::tuple<Coords, double, Coords>>;
     if (cmpRes == 0) { // atom at correct lattice site
-      nextExpected.increment();
+      if (isBcc) nextExpected.increment(); else nextExpected.incrementFcc();
       pre = std::make_tuple(curOffset, ar, c, id);
       isPre = true;
     } else if (cmpRes > 0) { // at site after expected
@@ -497,12 +487,12 @@ avi::DefectRes avi::atoms2defects(
                 "wrong inputs like latticeConst, boxDim or corrupt xyz file. "
                 "(v): " +
                 std::to_string(vacancies.size()));
-            return std::make_tuple(stAtoms.first, ErrorStatus::vacOverflow, DefectVecT{}, vector<int>{});
+            return std::make_tuple(stAtoms.first, ErrorStatus::vacOverflow, DefectVecT{}, vector<int>{}, ids);
           }
         }
-        nextExpected.increment();
+        if (isBcc) nextExpected.increment(); else nextExpected.incrementFcc();
       }
-      nextExpected.increment();
+      if (isBcc) nextExpected.increment(); else nextExpected.incrementFcc();
     } else { // atom sits at the same lattice site again
       vecB res;
       if (isPre && std::get<1>(pre) == ar) {
@@ -547,7 +537,7 @@ avi::DefectRes avi::atoms2defects(
           "file. (i, v): " +
           std::to_string(interstitials.size()) + ", " +
           std::to_string(vacancies.size()));
-      return std::make_tuple(stAtoms.first, ErrorStatus::defectOverflow, DefectVecT{}, vector<int>{});
+      return std::make_tuple(stAtoms.first, ErrorStatus::defectOverflow, DefectVecT{}, vector<int>{}, ids);
     }
     if (interThresh.size() > extraFactor * interstitials.size()) {
       Logger::inst().log_error(errMsg + 
@@ -684,284 +674,8 @@ avi::DefectRes avi::atoms2defects(
           std::to_string(extraDefects));
     }
   }
-  return std::make_tuple(stAtoms.first, ErrorStatus::noError, std::move(defects), std::move(vacSiasNu), std::move(ids)));
+  return std::make_tuple(stAtoms.first, ErrorStatus::noError, std::move(defects), std::move(vacSiasNu), std::move(ids));
 }
-
-avi::DefectRes avi::atoms2defectsFcc(
-    std::pair<avi::xyzFileStatus, std::vector<avi::offsetCoords>> stAtoms,
-    avi::InputInfo &info, avi::ExtraInfo &extraInfo,
-    const avi::Config &config) {
-  using avi::Coords;
-  using std::get;
-  using std::tuple;
-  using std::vector;
-  auto &atoms = stAtoms.second;
-  std::sort(begin(atoms), end(atoms));
-  // std::cout << "\natoms: " << std::get<0>(atoms[0])[0] << " | " << std::get<0>(atoms[atoms.size() - 1])[0] << '\n';
-  const auto minmax = std::minmax_element(
-      begin(atoms), end(atoms), [](const auto &ao, const auto &bo) {
-        const auto &a = std::get<0>(ao);
-        const auto &b = std::get<0>(bo);
-        return (a[0] + a[1] + a[2]) < (b[0] + b[1] + b[2]);
-      });
-  auto firstRow = std::get<0>(*(minmax.first));
-  auto lastRow = std::get<0>(*(minmax.second));
-  auto maxes = lastRow;
-  auto maxesInitial = avi::getInitialMaxFcc(firstRow, maxes);
-  // avi::Logger::inst().log_debug("Atoms: " + std::to_string(atoms.size()));
-  // std::cout << "\nfirstRow: " << firstRow[0] << '\n';
-  // std::cout << "\nmaxes: " << maxes[0] << ", " << maxes[1] << ", " << maxes[2] << '\n';
-  // std::cout << "\nmaxesInitial: " << maxesInitial[0] << ", " << maxesInitial[1] << ", " << maxesInitial[2] << '\n';
-  avi::NextExpected nextExpected{firstRow, maxes, maxesInitial, maxesInitial};
-  setCenter(extraInfo, firstRow, lastRow, info.latticeConst);
-   // avi::Logger::inst().log_debug("Min: " + strAr(firstRow) + " coord: " +
-   // strAr(std::get<2>(*minmax.first)));
-   // avi::Logger::inst().log_debug("Max: " + strAr(lastRow) + " coord: " +
-   // strAr(std::get<2>(*minmax.second)));
-   //avi::NextExpected nextExpected2{firstRow, maxes, maxesInitial}; testIt(atoms, nextExpected2);
-  std::tuple<double, Coords, Coords> pre;
-  bool isPre = false;
-  const auto latConst = info.latticeConst;
-  const auto thresh = getThresh(
-      info, config.thresholdFactor); // for rough interstitial threshold
-  vector<tuple<double, Coords, Coords>>
-      interThresh; // interstitials based on rough thresh
-  vector<tuple<Coords, Coords, bool>> interstitials;
-  vector<tuple<Coords, bool>> vacancies;
-  std::vector<int> vacSias;
-  vector<tuple<Coords, Coords, bool>> freeInterstitials;
-  const auto boundaryThresh = (config.isIgnoreBoundaryDefects) ? 0.501 : 0.00;
-  auto boundaryPred = [](Coords ar, Coords min, Coords max, double thresh) {
-    for (size_t i = 0; i < ar.size(); i++) {
-      if (ar[i] - thresh < min[i] || ar[i] + thresh > max[i]) { return true; }
-    }
-    return false;
-  };
-  const auto &extraFactor = config.extraDefectsSafetyFactor;
-  std::string errMsg = "";
-  if (!(Logger::inst().mode() & LogMode::info))
-    errMsg = "from \"" + info.xyzFilePath + "\", \"" + extraInfo.infile + "\": ";
-  for (const auto &row : atoms) {
-    Coords ar = get<0>(row);
-    double curOffset = get<1>(row);
-    Coords c = std::get<2>(row);
-    const auto cmpRes = cmpApprox(ar, nextExpected.cur());
-    if (nextExpected.allMax()) break;
-    // threshold
-    // std::cout << ar[0] << ", " << config.isAddThresholdDefects << '\n';
-    if (config.isAddThresholdDefects && curOffset > thresh) {
-      interThresh.emplace_back(curOffset, ar, c);
-    }
-    // clean
-    using vecB = std::vector<std::tuple<Coords, double, Coords>>;
-    if (cmpRes == 0) { // atom at correct lattice site
-      nextExpected.incrementFcc();
-      pre = std::make_tuple(curOffset, ar, c);
-      isPre = true;
-    } else if (cmpRes > 0) { // at site after expected
-      vecB res;
-      while (cmpApprox(ar, nextExpected.cur()) > 0 &&
-             cmpApprox(nextExpected.cur(), lastRow) <= 0 &&
-             !nextExpected.allMax()) {
-        if (!boundaryPred(nextExpected.cur(), nextExpected.minCur(),
-                          nextExpected.maxCur(), boundaryThresh)) {
-          vacSias.emplace_back(interstitials.size());
-          vacancies.emplace_back(nextExpected.cur(), true);
-          //avi::Logger::inst().log_debug("vac: " + strAr(nextExpected.cur()) + " coord: " + strAr(ar)); 
-          if (config.safeRunChecks &&
-              vacancies.size() * extraFactor > atoms.size()) {
-            Logger::inst().log_error(errMsg+
-                "not processing since too many vacancies, this might be due to "
-                "wrong inputs like latticeConst, boxDim or corrupt xyz file. "
-                "(v): " +
-                std::to_string(vacancies.size()));
-            return std::make_tuple(stAtoms.first, ErrorStatus::vacOverflow, DefectVecT{}, vector<int>{});
-          }
-        }
-        nextExpected.incrementFcc();
-      }
-      nextExpected.incrementFcc();
-    } else { // atom sits at the same lattice site again
-      vecB res;
-      if (isPre && std::get<1>(pre) == ar) {
-        auto isPreReal = std::get<0>(pre) > curOffset;
-        vacancies.emplace_back(ar, false); // dummy vacancy added
-        interstitials.emplace_back(std::get<1>(pre), std::get<2>(pre),
-                                   isPreReal);
-        interstitials.emplace_back(
-            ar, c,
-            !isPreReal); // both interstitials for structures like dumbbells
-        vacSias.push_back(interstitials.size());
-      } else {
-        if (boundaryPred(ar, nextExpected.minCur(), nextExpected.maxCur(),
-                         boundaryThresh) == false) {
-          if (vacSias.size() > 0 && cmpApprox(std::get<1>(pre), ar) == 0) {
-            interstitials.emplace_back(ar, c, true);
-            vacSias[vacSias.size() - 1] = interstitials.size();
-          } else {
-            freeInterstitials.emplace_back(ar, c, true);
-            // std::cout << "\n interstitial wo pre: " << c[0] << c[1] << c[2] << std::endl; 
-          }
-        }
-      }
-      if (config.safeRunChecks &&
-          interstitials.size() * extraFactor > atoms.size()) {
-        Logger::inst().log_error(errMsg +
-            "not processing since too many interstitials, this might be due to "
-            "wrong inputs like latticeConst, boxDim or corrupt xyz file. "
-            "(i): " +
-            std::to_string(interstitials.size()));
-        return std::make_tuple(stAtoms.first, ErrorStatus::siaOverflow, DefectVecT{}, vector<int>{});
-      }
-      isPre = false;
-    }
-  }
-  if (config.safeRunChecks) {
-    if (interstitials.size() * extraFactor > atoms.size() ||
-        vacancies.size() * extraFactor > atoms.size()) {
-      Logger::inst().log_error(errMsg +
-          "not processing since too many interstitials and vacancies, this may "
-          "be due to wrong inputs like latticeConst, boxDim or corrupt xyz "
-          "file. (i, v): " +
-          std::to_string(interstitials.size()) + ", " +
-          std::to_string(vacancies.size()));
-      return std::make_tuple(stAtoms.first, ErrorStatus::defectOverflow, DefectVecT{}, vector<int>{});
-    }
-    if (interThresh.size() > extraFactor * interstitials.size()) {
-      Logger::inst().log_error(errMsg +
-          "not processing since interThresh is too big, this may be due to "
-          "inputs like latticeConst, boxDim or corrupt xyz file.  (i, v, "
-          "interThresh): " +
-          std::to_string(interstitials.size()) + ", " +
-          std::to_string(vacancies.size()) + ", " +
-          std::to_string(interThresh.size()));
-      return std::make_tuple(stAtoms.first, ErrorStatus::threshOverflow, DefectVecT{}, vector<int>{});
-    }
-    if (interstitials.size() != vacancies.size()) {
-      if ((int(interstitials.size()) / int(vacancies.size())) > extraFactor) {
-        avi::Logger::inst().log_warning(errMsg +
-            "interstitails and vacancies have different sizes (i, v, "
-            "interTresh): " +
-            std::to_string(interstitials.size()) + ", " +
-            std::to_string(vacancies.size()) + ", " +
-            std::to_string(interThresh.size()));
-      } else {
-        avi::Logger::inst().log_debug(
-            "interstitails and vacancies have different sizes (i, v, "
-            "interThresh): " +
-            std::to_string(interstitials.size()) + ", " +
-            std::to_string(vacancies.size()) + ", " +
-            std::to_string(interThresh.size()));
-      }
-      if (interstitials.size() * (extraFactor / 10) < vacancies.size() ||
-          vacancies.size() * (extraFactor / 10) < interstitials.size()) {
-        if (!(Logger::inst().mode() & LogMode::info))
-          Logger::inst().log_info("from \"" + info.xyzFilePath + "\"");
-        avi::Logger::inst().log_error(errMsg + 
-            "not processing since the difference is too big (i, v, "
-            "interThresh): " +
-            std::to_string(interstitials.size()) + ", " +
-            std::to_string(vacancies.size()) + ", " +
-            std::to_string(interThresh.size()));
-        return std::make_tuple(stAtoms.first, ErrorStatus::siaVacDiffOverflow, DefectVecT{}, vector<int>{});
-      }
-    }
-  }
-  //std::cout<<"\ninterstitials: " << interstitials.size() << '\n';
-  //std::cout<<"\nvacancies: " << vacancies.size() << '\n';
-  //std::cout<<"\ninterThresh: " << interThresh.size() << '\n';
-  atoms.clear();
-  avi::DefectVecT defects;
-  defects.reserve(2 * vacancies.size());
-  auto vacCleanSave = vacancies;
-  auto anchor2coord = [&latConst](Coords c) {
-    for (auto &x : c)
-      x *= latConst;
-    return c;
-  };
-  auto count = 1;
-  for (auto &it : vacancies) {
-    for (auto &x : std::get<0>(it))
-      x *= latConst;
-  }
-  /*
-  std::cout <<"\nis: \n";
-  for(auto &it: interstitials) {
-    std::cout<<get<1>(it)[0] << ", " << get<1>(it)[1] << '\n';
-  }
-  std::cout <<"\nvs: \n";
-  for(auto &it: vacancies) {
-    std::cout<<get<0>(it)[0] << ", " << get<0>(it)[1] << '\n';
-  }
-  std::cout <<"\nvacSias: \n";
-  for(auto &it: vacSias) {
-    std::cout<<it <<'\n';
-  }
-  */
-  for (auto it: freeInterstitials) {
-    interstitials.push_back(it);
-  }
-  clean(interstitials, vacancies, info.latticeConst); // clean again
-  std::vector<int> vacSiasNu;
-  for (auto i = 0; i < vacancies.size(); i++) {
-    auto &it = vacancies[i];
-    defects.emplace_back(std::move(std::get<0>(it)), false, count++, std::get<1>(it));
-    //std::cout << "I is " << i << ": ";
-    for (auto j = (i > 0) ? vacSias[i-1] : 0; j < vacSias[i]; j++) {
-      //std::cout << j << ", ";
-      auto &jt = interstitials[j];
-      defects.emplace_back(std::move(get<1>(jt)), true, count++, get<2>(jt));
-    }
-    //std::cout << '\n';
-    vacSiasNu.push_back(defects.size());
-  }
-  /*
-  std::cout <<"\ndefects: \n";
-  for(auto &it: defects) {
-    std::cout<<get<0>(it)[0] << ", " << get<0>(it)[1] << '\n';
-  }
-  */
-  int extraDefects = 0;
-  int maxExtraDefects = interstitials.size() * 3;
-  if (maxExtraDefects > interThresh.size())
-    maxExtraDefects = interThresh.size();
-  std::nth_element(begin(interThresh), begin(interThresh) + maxExtraDefects,
-                   end(interThresh), [](const auto &a, const auto &b) {
-                     return std::get<0>(a) > std::get<0>(b);
-                   });
-  for (const auto &it : interThresh) {
-    if (!existAnchorInter(std::get<1>(it), vacCleanSave)) {
-      extraDefects++;
-      if (config.safeRunChecks && extraDefects > maxExtraDefects) continue;
-      defects.emplace_back(anchor2coord(std::move(get<1>(it))), false, count++,
-                           false);
-      defects.emplace_back(std::move(get<2>(it)), true, count++, false);
-      vacSiasNu.emplace_back(defects.size());
-    }
-  }
-  for (const auto &jt : freeInterstitials) {
-    defects.emplace_back(std::move(get<1>(jt)), true, count++, get<2>(jt));
-  }
-  if (config.safeRunChecks && extraDefects > interstitials.size()) {
-    if (extraDefects > maxExtraDefects) {
-      Logger::inst().log_warning(errMsg+
-          "Some threshold based defects ignored. Too many threshold based "
-          "defects. (i, v, extraI): " +
-          std::to_string(interstitials.size()) + ", " +
-          std::to_string(vacancies.size()) + ", " +
-          std::to_string(extraDefects));
-    } else {
-      Logger::inst().log_debug(
-          "Too many threshold based defects. (i, v, extraI): " +
-          std::to_string(interstitials.size()) + ", " +
-          std::to_string(vacancies.size()) + ", " +
-          std::to_string(extraDefects));
-    }
-  }
-  return std::make_tuple(stAtoms.first, ErrorStatus::noError, std::move(defects), std::move(vacSiasNu));
-}
-
-
 
 auto cleanDisplaced(avi::DefectVecT &inter, avi::DefectVecT &vac,
                     double latticeConst) {
@@ -1106,6 +820,7 @@ avi::DefectRes avi::displacedAtoms2defects(
   }
   */
   std::vector<int> latticeSiteGroups;
+  std::vector<size_t> ids; // TODO fill these
   latticeSiteGroups.reserve(vacSias.size());
   for (auto i = 0; i < vacSias.size(); i++) {
     if (vacSias[i].size() == 1 && vacSias[i][0].first < threshDistSqr) continue;
@@ -1139,5 +854,5 @@ avi::DefectRes avi::displacedAtoms2defects(
   std::cout << '\n';
   */
   //std::cout <<"finnal defects size: " << defects.size() << '\n';
-  return std::make_tuple(statoms.first, avi::ErrorStatus::noError, std::move(defects), std::move(latticeSiteGroups));
+  return std::make_tuple(statoms.first, avi::ErrorStatus::noError, std::move(defects), std::move(latticeSiteGroups), ids);
 }
