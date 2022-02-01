@@ -524,7 +524,7 @@ CHECK(ne.incrementFcc() == Coords{{2.75, 2.75, 2.25}});
           "[defectsTestFcc]") {
    SECTION("Normal cases") {
      SECTION("Single Dumbbell") {
-       std::vector<std::tuple<Coords, double, Coords>> atoms;
+       std::vector<avi::offsetCoords> atoms;
        auto origin = avi::Coords{{0.25, 0.25, 0.25}};
        //auto max = avi::Coords{{10.75, 10.75, 10.75}};
        auto max = avi::Coords{{3.75, 3.75, 3.75}};
@@ -572,7 +572,7 @@ CHECK(ne.incrementFcc() == Coords{{2.75, 2.75, 2.25}});
        info.originZ = origin[2];
        ExtraInfo extraInfo;
        auto fsAtoms = std::make_pair(avi::xyzFileStatus::reading, atoms);
-       auto ungroupedDefectsDumbbellPair = atoms2defectsFcc(fsAtoms, info, extraInfo, config);
+       auto ungroupedDefectsDumbbellPair = atoms2defects(fsAtoms, info, extraInfo, config, false);
        auto ungroupedDefects = std::get<2>(ungroupedDefectsDumbbellPair);
        REQUIRE(ungroupedDefects.size() == 4); // 2 interstitials, 2 vacancies
        SECTION("Check cluster grouping") {
@@ -636,7 +636,7 @@ CHECK(ne.incrementFcc() == Coords{{2.75, 2.75, 2.25}});
        }     // cluster grouping
      }       // End of Single Dumbbell test
     SECTION("big interstitial cluster") {
-      std::vector<std::tuple<Coords, double, Coords>> atoms;
+      std::vector<avi::offsetCoords> atoms;
       auto origin = avi::Coords{{0.5, 0.5, 0.5}};
       auto max = avi::Coords{{6.0, 6.0, 6.0}};
       auto maxInitial = getInitialMaxFcc(origin, max);
@@ -684,7 +684,7 @@ CHECK(ne.incrementFcc() == Coords{{2.75, 2.75, 2.25}});
       info.originZ = origin[2];
       ExtraInfo extraInfo;
       auto fsAtoms = std::make_pair(avi::xyzFileStatus::reading, atoms);
-      auto ungroupedDefectsDumbbellPair = atoms2defectsFcc(fsAtoms, info, extraInfo, config);
+      auto ungroupedDefectsDumbbellPair = atoms2defects(fsAtoms, info, extraInfo, config, false);
       auto ungroupedDefects = std::get<2>(ungroupedDefectsDumbbellPair);
       REQUIRE(ungroupedDefects.size() == 16);
       int nDefects;
@@ -726,7 +726,7 @@ CHECK(ne.incrementFcc() == Coords{{2.75, 2.75, 2.25}});
   SECTION("Invalid input cases") {
     SECTION(
         "One atom kicked out of the box : unwrapped coordinates are invalid") {
-      std::vector<std::tuple<Coords, double, Coords>> atoms;
+      std::vector<avi::offsetCoords> atoms;
 
       auto origin = avi::Coords{{0.25, 0.25, 0.25}};
       auto max = avi::Coords{{10.75, 10.75, 10.75}};
@@ -765,7 +765,7 @@ CHECK(ne.incrementFcc() == Coords{{2.75, 2.75, 2.25}});
       info.originZ = origin[2];
       ExtraInfo extraInfo;
       auto fsAtoms = std::make_pair(avi::xyzFileStatus::reading, atoms);
-      auto ungroupedDefectsDumbbellPair = atoms2defectsFcc(fsAtoms, info, extraInfo, config);
+      auto ungroupedDefectsDumbbellPair = atoms2defects(fsAtoms, info, extraInfo, config, false);
       auto ungroupedDefects = std::get<2>(ungroupedDefectsDumbbellPair);
       // it should have been 4 but now alot more defects are counted as the
       // box size is inferred from the atom coordinates, including the atom
@@ -788,7 +788,7 @@ CHECK(ne.incrementFcc() == Coords{{2.75, 2.75, 2.25}});
   }
   SECTION("Edge cases") {
     SECTION("Perfect lattice") {
-      std::vector<std::tuple<Coords, double, Coords>> atoms;
+      std::vector<avi::offsetCoords> atoms;
       auto origin = avi::Coords{{0.0, 0.0, 0.0}};
       auto max = avi::Coords{{1.5, 1.5, 1.5}};
       auto maxInitial = getInitialMaxFcc(origin, max);
@@ -810,11 +810,11 @@ CHECK(ne.incrementFcc() == Coords{{2.75, 2.75, 2.25}});
       info.originZ = origin[2];
       ExtraInfo extraInfo;
       auto fsAtoms = std::make_pair(avi::xyzFileStatus::reading, atoms);
-      auto ungroupedDefectsDumbbellPair = atoms2defectsFcc(fsAtoms, info, extraInfo, config);
+      auto ungroupedDefectsDumbbellPair = atoms2defects(fsAtoms, info, extraInfo, config, false);
       REQUIRE(std::get<2>(ungroupedDefectsDumbbellPair).empty());
     }
     SECTION("slightly shaken lattice") {
-      std::vector<std::tuple<Coords, double, Coords>> atoms;
+      std::vector<avi::offsetCoords> atoms;
       auto origin = avi::Coords{{0.0, 0.0, 0.0}};
       auto max = avi::Coords{{1.5, 1.5, 1.5}};
       auto maxInitial = getInitialMaxFcc(origin, max);
@@ -841,7 +841,7 @@ CHECK(ne.incrementFcc() == Coords{{2.75, 2.75, 2.25}});
       info.originY = origin[1];
       info.originZ = origin[2];
       auto fsAtoms = std::make_pair(avi::xyzFileStatus::reading, atoms);
-      auto ungroupedDefectsDumbbellPair = atoms2defectsFcc(fsAtoms, info, extraInfo, config);
+      auto ungroupedDefectsDumbbellPair = atoms2defects(fsAtoms, info, extraInfo, config, false);
       REQUIRE(std::get<2>(ungroupedDefectsDumbbellPair).empty());
     }
   }

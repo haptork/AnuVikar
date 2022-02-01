@@ -414,54 +414,55 @@ SCENARIO("Enumerate all lattice sites for a bcc in ascending order given min "
 TEST_CASE("Read atom coordinates from a parcas xyz file line",
           "[defectsTest]") {
   SECTION("Normal cases") {
-    Coords c;
     avi::lineStatus ls;
+    Coords c;
+    std::vector<double> ec;
     // coords
-    std::tie(ls, c) = avi::getCoordParcas("Fe   -76.770403   +7.2e2   .7",
+    std::tie(ls, c, ec) = avi::getCoordParcas("Fe   -76.770403   +7.2e2   .7",
                                                avi::frameStatus::inFrame, 0);
     CHECK(ls == avi::lineStatus::coords);
     CHECK(c == Coords{{-76.770403, 720, 0.7}});
-    std::tie(ls, c) =
+    std::tie(ls, c, ec) =
         avi::getCoordParcas("what   +76.770403   -7.2e2   0.700 Frame",
                                  avi::frameStatus::inFrame, 2);
     CHECK(ls == avi::lineStatus::coords);
     CHECK(c == Coords{{76.770403, -720, 0.7}});
-    std::tie(ls, c) = avi::getCoordParcas(
+    std::tie(ls, c, ec) = avi::getCoordParcas(
         "  what 0.000000 +7.2e2 3f whatever  ", avi::frameStatus::inFrame, 2);
     CHECK(ls == avi::lineStatus::coords);
     CHECK(c == Coords{{0.0, 720, 3.0}});
     // garbage
-    std::tie(ls, c) =
+    std::tie(ls, c, ec) =
         avi::getCoordParcas("53   +76.770403   -7.2e2   0.700 Frame",
                                  avi::frameStatus::inFrame, 2);
     CHECK(ls == avi::lineStatus::garbage);
-    std::tie(ls, c) =
+    std::tie(ls, c, ec) =
         avi::getCoordParcas("garbage", avi::frameStatus::inFrame, 0);
     CHECK(ls == avi::lineStatus::garbage);
-    std::tie(ls, c) = avi::getCoordParcas("-76.770403   +7.2e2   .7",
+    std::tie(ls, c, ec) = avi::getCoordParcas("-76.770403   +7.2e2   .7",
                                                avi::frameStatus::inFrame, 1);
     CHECK(ls == avi::lineStatus::coords);
     CHECK(c == Coords{{-76.770403, +7.2e2, .7}});
-    std::tie(ls, c) =
+    std::tie(ls, c, ec) =
         avi::getCoordParcas("what 34 2.5", avi::frameStatus::inFrame, 0);
     CHECK(ls == avi::lineStatus::garbage);
-    std::tie(ls, c) = avi::getCoordParcas(
+    std::tie(ls, c, ec) = avi::getCoordParcas(
         "-76.770403   +7.2e2   .7 garbage", avi::frameStatus::inFrame, 0);
     CHECK(ls == avi::lineStatus::garbage);
-    std::tie(ls, c) = avi::getCoordParcas("what 34 2.5 garbage",
+    std::tie(ls, c, ec) = avi::getCoordParcas("what 34 2.5 garbage",
                                                avi::frameStatus::inFrame, 0);
     CHECK(ls == avi::lineStatus::garbage);
-    std::tie(ls, c) = avi::getCoordParcas("what Frame 2.5 garbage",
+    std::tie(ls, c, ec) = avi::getCoordParcas("what Frame 2.5 garbage",
                                                avi::frameStatus::inFrame, 0);
     CHECK(ls == avi::lineStatus::garbage);
     // border
-    std::tie(ls, c) = avi::getCoordParcas("Frame 2.5 garbage",
+    std::tie(ls, c, ec) = avi::getCoordParcas("Frame 2.5 garbage",
                                                avi::frameStatus::inFrame, 0);
     CHECK(ls == avi::lineStatus::frameBorder);
-    std::tie(ls, c) =
+    std::tie(ls, c, ec) =
         avi::getCoordParcas("Frame", avi::frameStatus::inFrame, 0);
     CHECK(ls == avi::lineStatus::frameBorder);
-    std::tie(ls, c) = avi::getCoordParcas("  Frame 0.000000 +7.2e2 3f",
+    std::tie(ls, c, ec) = avi::getCoordParcas("  Frame 0.000000 +7.2e2 3f",
                                                avi::frameStatus::inFrame, 0);
     CHECK(ls == avi::lineStatus::frameBorder);
   }
@@ -470,56 +471,57 @@ TEST_CASE("Read atom coordinates from a parcas xyz file line",
 TEST_CASE("Read atom coordinates from a line from lammps xyz file",
           "[defectsTest]") {
   SECTION("Normal cases") {
-    Coords c;
     avi::lineStatus ls;
+    Coords c;
+    std::vector<double> ec;
     // coords
-    std::tie(ls, c) = avi::getCoordLammps("Fe   -76.770403   +7.2e2   .7",
+    std::tie(ls, c, ec) = avi::getCoordLammps("Fe   -76.770403   +7.2e2   .7",
                                                avi::frameStatus::inFrame, 2);
     CHECK(ls == avi::lineStatus::coords);
     CHECK(c == Coords{{-76.770403, 720, 0.7}});
-    std::tie(ls, c) =
+    std::tie(ls, c, ec) =
         avi::getCoordLammps("54   +76.770403   -7.2e2   0.700 ITEM:",
                                  avi::frameStatus::inFrame, 2);
     CHECK(ls == avi::lineStatus::coords);
     CHECK(c == Coords{{76.770403, -720, 0.7}});
-    std::tie(ls, c) = avi::getCoordLammps(
+    std::tie(ls, c, ec) = avi::getCoordLammps(
         "  what if 0.000000 +7.2e2 3f whatever  ", avi::frameStatus::inFrame, 3);
     CHECK(ls == avi::lineStatus::coords);
     CHECK(c == Coords{{0.0, 720, 3.0}});
-    std::tie(ls, c) = avi::getCoordLammps(
+    std::tie(ls, c, ec) = avi::getCoordLammps(
         "no  what if 0.000000 +7.2e2 3f 2.0 ", avi::frameStatus::inFrame, 0);
     CHECK(ls == avi::lineStatus::coords);
     CHECK(c == Coords{{720, 3.0, 2.0}});
     // garbage
-    std::tie(ls, c) = avi::getCoordLammps(
+    std::tie(ls, c, ec) = avi::getCoordLammps(
         "no  what if 0.000000 +7.2e2 3f 2.0 whatever  ", avi::frameStatus::inFrame, 0);
     CHECK(ls == avi::lineStatus::garbage);
-    std::tie(ls, c) =
+    std::tie(ls, c, ec) =
         avi::getCoordLammps("garbage", avi::frameStatus::inFrame, 0);
     CHECK(ls == avi::lineStatus::garbage);
-    std::tie(ls, c) = avi::getCoordLammps("-76.770403   +7.2e2   .7",
+    std::tie(ls, c, ec) = avi::getCoordLammps("-76.770403   +7.2e2   .7",
                                                avi::frameStatus::inFrame, 2);
     CHECK(ls == avi::lineStatus::garbage);
-    std::tie(ls, c) =
+    std::tie(ls, c, ec) =
         avi::getCoordLammps("what 34 2.5", avi::frameStatus::inFrame, 0);
     CHECK(ls == avi::lineStatus::garbage);
-    std::tie(ls, c) = avi::getCoordLammps(
+    std::tie(ls, c, ec) = avi::getCoordLammps(
         "-76.770403   +7.2e2   .7 garbage", avi::frameStatus::inFrame, 0);
     CHECK(ls == avi::lineStatus::garbage);
-    std::tie(ls, c) = avi::getCoordLammps("what 34 2.5 garbage",
+    std::tie(ls, c, ec) = avi::getCoordLammps("what 34 2.5 garbage",
                                                avi::frameStatus::inFrame, 0);
     CHECK(ls == avi::lineStatus::garbage);
-    std::tie(ls, c) = avi::getCoordLammps("what ITEM: 2.5 garbage",
+    std::tie(ls, c, ec) = avi::getCoordLammps("what ITEM: 2.5 garbage",
                                                avi::frameStatus::inFrame, 0);
     CHECK(ls == avi::lineStatus::garbage);
     // border
-    std::tie(ls, c) = avi::getCoordLammps("ITEM: 2.5 garbage",
+    std::tie(ls, c, ec) = avi::getCoordLammps("ITEM: 2.5 garbage",
                                                avi::frameStatus::inFrame, 0);
     CHECK(ls == avi::lineStatus::frameBorder);
-    std::tie(ls, c) =
+    std::tie(ls, c, ec) =
         avi::getCoordLammps("ITEM:", avi::frameStatus::inFrame, 0);
     CHECK(ls == avi::lineStatus::frameBorder);
-    std::tie(ls, c) = avi::getCoordLammps("  ITEM: 0.000000 +7.2e2 3f",
+    std::tie(ls, c, ec) = avi::getCoordLammps("  ITEM: 0.000000 +7.2e2 3f",
                                                avi::frameStatus::inFrame, 0);
     CHECK(ls == avi::lineStatus::frameBorder);
   }
@@ -529,45 +531,46 @@ TEST_CASE(
     "Read displaced (interstitial and vacancy pair) coordinates from a line",
     "[defectsTest]") {
   SECTION("Normal cases") {
-    std::array<Coords, 2> c;
     avi::lineStatus ls;
+    std::array<Coords, 2> c;
+    std::vector<double> ec;
     // coords
-    std::tie(ls, c) =
+    std::tie(ls, c, ec) =
         avi::getCoordDisplaced("1 -76.770403   +7.2e2   .7  +76.770403   "
                                     "-7.2e2   0.700 6891 112087 1 ");
     CHECK(ls == avi::lineStatus::coords);
     CHECK(c == std::array<Coords, 2>{{Coords{{-76.770403, 720, 0.7}},
                                       Coords{{76.770403, -720, 0.7}}}});
-    std::tie(ls, c) = avi::getCoordDisplaced(
+    std::tie(ls, c, ec) = avi::getCoordDisplaced(
         "Fe +76.770403   -7.2e2   0.700 -76.770403  +7.2e2   .7  ");
     CHECK(ls == avi::lineStatus::coords);
     CHECK(c == std::array<Coords, 2>{{Coords{{76.770403, -720, 0.7}},
                                       Coords{{-76.770403, 720, 0.7}}}});
-    std::tie(ls, c) = avi::getCoordDisplaced(
+    std::tie(ls, c, ec) = avi::getCoordDisplaced(
         "  Fe +76.770403f   -7.2e2d   0.700 -76.770403  +7.2e2   .7  ITEM:");
     CHECK(ls == avi::lineStatus::coords);
     CHECK(c == std::array<Coords, 2>{{Coords{{76.770403, -720, 0.7}},
                                       Coords{{-76.770403, 720, 0.7}}}});
     // garbage
-    std::tie(ls, c) = avi::getCoordDisplaced("garbage");
+    std::tie(ls, c, ec) = avi::getCoordDisplaced("garbage");
     CHECK(ls == avi::lineStatus::garbage);
-    std::tie(ls, c) = avi::getCoordDisplaced(
+    std::tie(ls, c, ec) = avi::getCoordDisplaced(
         "Fe   -76.770403   +7.2e2 -76.770403   +7.2e2   .7");
     CHECK(ls == avi::lineStatus::garbage);
-    std::tie(ls, c) = avi::getCoordDisplaced(
+    std::tie(ls, c, ec) = avi::getCoordDisplaced(
         "Fe   -76.770403   +7.2e2-76.770403   +7.2e2   .7");
     CHECK(ls == avi::lineStatus::garbage);
-    std::tie(ls, c) =
+    std::tie(ls, c, ec) =
         avi::getCoordDisplaced("what 34 2.5 3.5 whatever 3.0 3.5");
     CHECK(ls == avi::lineStatus::garbage);
-    std::tie(ls, c) = avi::getCoordDisplaced("what ITEM: 2.5 garbage");
+    std::tie(ls, c, ec) = avi::getCoordDisplaced("what ITEM: 2.5 garbage");
     CHECK(ls == avi::lineStatus::garbage);
     // border
-    std::tie(ls, c) = avi::getCoordDisplaced("ITEM: ENTRIES 2.5 garbage");
+    std::tie(ls, c, ec) = avi::getCoordDisplaced("ITEM: ENTRIES 2.5 garbage");
     CHECK(ls == avi::lineStatus::frameBorder);
-    std::tie(ls, c) = avi::getCoordDisplaced("ITEM: ENTRIES");
+    std::tie(ls, c, ec) = avi::getCoordDisplaced("ITEM: ENTRIES");
     CHECK(ls == avi::lineStatus::frameBorder);
-    std::tie(ls, c) = avi::getCoordDisplaced(
+    std::tie(ls, c, ec) = avi::getCoordDisplaced(
         " ITEM: +76.770403   -7.2e2   0.700 -76.770403  +7.2e2   .7");
     CHECK(ls == avi::lineStatus::garbage);
   }
@@ -579,7 +582,7 @@ SCENARIO("Given xyz coordinates of all the lattice atoms, output only the "
          "[defectsTest]") {
   SECTION("Normal cases") {
     SECTION("Single Dumbbell") {
-      std::vector<std::tuple<Coords, double, Coords>> atoms;
+      std::vector<avi::offsetCoords> atoms;
       auto origin = avi::Coords{{0.25, 0.25, 0.25}};
       auto max = avi::Coords{{10.75, 10.75, 10.75}};
       auto maxInitial = getInitialMax(origin, max);
@@ -624,7 +627,7 @@ SCENARIO("Given xyz coordinates of all the lattice atoms, output only the "
       info.originZ = origin[2];
       ExtraInfo extraInfo;
       auto fsAtoms = std::make_pair(avi::xyzFileStatus::reading, atoms);
-      auto ungroupedDefectsDumbbellPair = atoms2defects(fsAtoms, info, extraInfo, config);
+      auto ungroupedDefectsDumbbellPair = atoms2defects(fsAtoms, info, extraInfo, config, true);
       auto ungroupedDefects = std::get<2>(ungroupedDefectsDumbbellPair);
       REQUIRE(ungroupedDefects.size() == 4); // 2 interstitials, 2 vacancies
       SECTION("Check cluster grouping") {
@@ -689,7 +692,7 @@ SCENARIO("Given xyz coordinates of all the lattice atoms, output only the "
       }     // cluster grouping
     }       // End of Single Dumbbell test
     SECTION("big interstitial cluster") {
-      std::vector<std::tuple<Coords, double, Coords>> atoms;
+      std::vector<avi::offsetCoords> atoms;
       auto origin = avi::Coords{{0.5, 0.5, 0.5}};
       auto max = avi::Coords{{6.0, 6.0, 6.0}};
       auto maxInitial = getInitialMax(origin, max);
@@ -737,7 +740,7 @@ SCENARIO("Given xyz coordinates of all the lattice atoms, output only the "
       info.originZ = origin[2];
       ExtraInfo extraInfo;
       auto fsAtoms = std::make_pair(avi::xyzFileStatus::reading, atoms);
-      auto ungroupedDefectsDumbbellPair = atoms2defects(fsAtoms, info, extraInfo, config);
+      auto ungroupedDefectsDumbbellPair = atoms2defects(fsAtoms, info, extraInfo, config, true);
       auto ungroupedDefects = std::get<2>(ungroupedDefectsDumbbellPair);
       REQUIRE(ungroupedDefects.size() == 10);
       int nDefects;
@@ -776,7 +779,7 @@ SCENARIO("Given xyz coordinates of all the lattice atoms, output only the "
       }   // cluster grouping
     }
     SECTION("Interstitial and Vacancy in two big clusters") {
-      std::vector<std::tuple<Coords, double, Coords>> atoms;
+      std::vector<avi::offsetCoords> atoms;
       auto origin = avi::Coords{{0.0, 0.0, 0.0}};
       auto max = avi::Coords{{4.5, 4.5, 4.5}};
       auto maxInitial = getInitialMax(origin, max);
@@ -822,7 +825,7 @@ SCENARIO("Given xyz coordinates of all the lattice atoms, output only the "
       info.originZ = origin[2];
       ExtraInfo extraInfo;
       auto fsAtoms = std::make_pair(avi::xyzFileStatus::reading, atoms);
-      auto ungroupedDefectsDumbbellPair = atoms2defects(fsAtoms, info, extraInfo, config);
+      auto ungroupedDefectsDumbbellPair = atoms2defects(fsAtoms, info, extraInfo, config, true);
       auto ungroupedDefects = std::get<2>(ungroupedDefectsDumbbellPair);
       CHECK(ungroupedDefects.size() == 200);
       int nDefects;
@@ -878,7 +881,7 @@ SCENARIO("Given xyz coordinates of all the lattice atoms, output only the "
   SECTION("Invalid input cases") {
     SECTION(
         "One atom kicked out of the box : unwrapped coordinates are invalid") {
-      std::vector<std::tuple<Coords, double, Coords>> atoms;
+      std::vector<avi::offsetCoords> atoms;
 
       auto origin = avi::Coords{{0.25, 0.25, 0.25}};
       auto max = avi::Coords{{10.75, 10.75, 10.75}};
@@ -917,7 +920,7 @@ SCENARIO("Given xyz coordinates of all the lattice atoms, output only the "
       info.originZ = origin[2];
       ExtraInfo extraInfo;
       auto fsAtoms = std::make_pair(avi::xyzFileStatus::reading, atoms);
-      auto ungroupedDefectsDumbbellPair = atoms2defects(fsAtoms, info, extraInfo, config);
+      auto ungroupedDefectsDumbbellPair = atoms2defects(fsAtoms, info, extraInfo, config, true);
       auto ungroupedDefects = std::get<2>(ungroupedDefectsDumbbellPair);
       // it should have been 4 but now alot more defects are counted as the
       // box size is inferred from the atom coordinates, including the atom
@@ -939,7 +942,7 @@ SCENARIO("Given xyz coordinates of all the lattice atoms, output only the "
   }
   SECTION("Edge cases") {
     SECTION("Perfect lattice") {
-      std::vector<std::tuple<Coords, double, Coords>> atoms;
+      std::vector<avi::offsetCoords> atoms;
       auto origin = avi::Coords{{0.0, 0.0, 0.0}};
       auto max = avi::Coords{{1.5, 1.5, 1.5}};
       auto maxInitial = getInitialMax(origin, max);
@@ -961,11 +964,11 @@ SCENARIO("Given xyz coordinates of all the lattice atoms, output only the "
       info.originZ = origin[2];
       ExtraInfo extraInfo;
       auto fsAtoms = std::make_pair(avi::xyzFileStatus::reading, atoms);
-      auto ungroupedDefectsDumbbellPair = atoms2defects(fsAtoms, info, extraInfo, config);
+      auto ungroupedDefectsDumbbellPair = atoms2defects(fsAtoms, info, extraInfo, config, true);
       REQUIRE(std::get<2>(ungroupedDefectsDumbbellPair).empty());
     }
     SECTION("slightly shaken lattice") {
-      std::vector<std::tuple<Coords, double, Coords>> atoms;
+      std::vector<avi::offsetCoords> atoms;
       auto origin = avi::Coords{{0.0, 0.0, 0.0}};
       auto max = avi::Coords{{1.5, 1.5, 1.5}};
       auto maxInitial = getInitialMax(origin, max);
@@ -992,7 +995,7 @@ SCENARIO("Given xyz coordinates of all the lattice atoms, output only the "
       info.originY = origin[1];
       info.originZ = origin[2];
       auto fsAtoms = std::make_pair(avi::xyzFileStatus::reading, atoms);
-      auto ungroupedDefectsDumbbellPair = atoms2defects(fsAtoms, info, extraInfo, config);
+      auto ungroupedDefectsDumbbellPair = atoms2defects(fsAtoms, info, extraInfo, config, true);
       REQUIRE(std::get<2>(ungroupedDefectsDumbbellPair).empty());
     }
   }
