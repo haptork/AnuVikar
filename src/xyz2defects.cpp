@@ -156,7 +156,7 @@ getDisplacedAtomsTime(avi::InputInfo &info, avi::ExtraInfo &extraInfo,
   return res;
 }
 
-std::pair<avi::xyzFileStatus, std::vector<avi::offsetCoords>>
+std::tuple<avi::xyzFileStatus, std::vector<avi::offsetCoords>, std::vector<std::vector<double>>>
 getAtomsTime(avi::InputInfo &info, avi::ExtraInfo &extraInfo,
          const avi::Config &config, std::istream &infile, avi::frameStatus &fs) {
   using avi::Coords;
@@ -167,7 +167,7 @@ getAtomsTime(avi::InputInfo &info, avi::ExtraInfo &extraInfo,
   using std::vector;
   vector<Coords>
       atoms; // for all the atoms along with nearest closest sites and offset
-  std::pair<avi::xyzFileStatus, vector<avi::offsetCoords>>
+  std::tuple<avi::xyzFileStatus, vector<avi::offsetCoords>, std::vector<std::vector<double>>>
       res; // for all the atoms along with nearest closest sites and offset
   const auto &latConst = info.latticeConst;
   if (info.ncell > 0) atoms.reserve(info.ncell * info.ncell * info.ncell * 2);
@@ -176,7 +176,7 @@ getAtomsTime(avi::InputInfo &info, avi::ExtraInfo &extraInfo,
   Coords c;
   std::vector<double> ec;
   avi::lineStatus ls;
-  res.first = avi::xyzFileStatus::eof;
+  std::get<0>(res) = avi::xyzFileStatus::eof;
   while (std::getline(infile, line)) {
     std::tie(ls, c, ec) = avi::getCoord(line, fs, info, extraInfo);
     // TODO: add ec to props
@@ -189,7 +189,7 @@ getAtomsTime(avi::InputInfo &info, avi::ExtraInfo &extraInfo,
       if (fs != avi::frameStatus::prelude) {
         fs = avi::frameStatus::inFrame;
         if (config.allFrames && !atoms.empty()) {
-          res.first = avi::xyzFileStatus::reading;
+          std::get<0>(res) = avi::xyzFileStatus::reading;
           break;
         }
         if (!atoms.empty()) {
@@ -282,11 +282,11 @@ getAtomsTime(avi::InputInfo &info, avi::ExtraInfo &extraInfo,
     info.originZ = std::get<0>(combos[leastIndex])[2];
     info.latticeConst = std::get<1>(combos[leastIndex]);
   }
-  res.second.reserve(atoms.size());
+  std::get<1>(res).reserve(atoms.size());
   auto origin = avi::Coords{{info.originX, info.originY, info.originZ}};
   auto obj = avi::AddOffset{info.latticeConst, info.structure, origin};
   // std::cout << "latInfo: " << info.latticeConst << ", " << info.structure << ", " << origin[0] << '\n';
-  std::transform(begin(atoms), end(atoms), std::back_inserter(res.second), obj);
+  std::transform(begin(atoms), end(atoms), std::back_inserter(std::get<1>(res)), obj);
   // std::cout << "\natoms1: " << atoms[0][0] << " | " << atoms[atoms.size() - 1][0] << '\n';
   // std::cout << "\natoms res: " << std::get<0>(res.second[0])[0] << " | " << std::get<0>(res.second[res.second.size() - 1])[0] << '\n';
   if (info.boxSize < 0.0) { info.boxSize = info.latticeConst * info.ncell; }
@@ -298,21 +298,21 @@ avi::xyz2defectsTime(avi::InputInfo &mainInfo,
                       avi::ExtraInfo &extraInfo,
                       const avi::Config &config, std::istream &infile, avi::frameStatus &fs) {
   auto atoms = getAtomsTime(mainInfo, extraInfo, config, infile, fs);
-  if (atoms.second.empty() && mainInfo.xyzFileType != avi::XyzFileType::generic) {
+  if (std::get<1>(atoms).empty() && mainInfo.xyzFileType != avi::XyzFileType::generic) {
     infile.clear();
     infile.seekg(0);
     auto temp = mainInfo.xyzFileType;
     mainInfo.xyzFileType = avi::XyzFileType::generic;
     mainInfo.xyzColumnStart = 0;
     atoms = getAtomsTime(mainInfo, extraInfo, config, infile, fs);
-    if (!atoms.second.empty()) {
+    if (!std::get<1>(atoms).empty()) {
       Logger::inst().log_warning(extraInfo.infile +": " + mainInfo.xyzFilePath + ": Default file format " + strSimulationCodeD(temp) + " is not correct. Fallback to generic reading works.");
     }
   }
   //std::cout << "\natoms: " << atoms.second.size() << '\n';
   //std::cout << "\nxyzCol: " << mainInfo.xyzColumnStart << '\n';
-  if (atoms.second.empty())
-    return std::make_tuple(atoms.first, ErrorStatus::xyzFileReadError, avi::DefectVecT{}, std::vector<int>{}, std::vector<size_t>{});
+  if (std::get<1>(atoms).empty())
+    return std::make_tuple(std::get<0>(atoms), ErrorStatus::xyzFileReadError, avi::DefectVecT{}, std::vector<int>{}, std::vector<size_t>{});
   return  atoms2defects(atoms, mainInfo, extraInfo, config, (mainInfo.structure == "bcc"));
 }
 
@@ -405,14 +405,15 @@ void setCenter(avi::ExtraInfo &extraInfo, avi::Coords minC,
 }
 
 avi::DefectRes avi::atoms2defects(
-    std::pair<avi::xyzFileStatus, std::vector<avi::offsetCoords>> stAtoms,
+    std::tuple<avi::xyzFileStatus, std::vector<avi::offsetCoords>, std::vector<std::vector<double>>> stAtoms,
     avi::InputInfo &info, avi::ExtraInfo &extraInfo,
     const avi::Config &config, bool isBcc) {
   using avi::Coords;
   using std::get;
   using std::tuple;
   using std::vector;
-  auto &atoms = stAtoms.second;
+  bool isIncludeId = (!(std::get<2>(stAtoms)).empty() && !std::get<2>(stAtoms)[0].empty()) || info.extraColumnStart == -2;
+  auto &atoms = std::get<1>(stAtoms);
   std::sort(begin(atoms), end(atoms));
   // std::cout << "\natoms: " << std::get<0>(atoms[0])[0] << " | " << std::get<0>(atoms[atoms.size() - 1])[0] << '\n';
   const auto minmax = std::minmax_element(
@@ -487,7 +488,7 @@ avi::DefectRes avi::atoms2defects(
                 "wrong inputs like latticeConst, boxDim or corrupt xyz file. "
                 "(v): " +
                 std::to_string(vacancies.size()));
-            return std::make_tuple(stAtoms.first, ErrorStatus::vacOverflow, DefectVecT{}, vector<int>{}, ids);
+            return std::make_tuple(std::get<0>(stAtoms), ErrorStatus::vacOverflow, DefectVecT{}, vector<int>{}, ids);
           }
         }
         if (isBcc) nextExpected.increment(); else nextExpected.incrementFcc();
@@ -523,7 +524,7 @@ avi::DefectRes avi::atoms2defects(
             "wrong inputs like latticeConst, boxDim or corrupt xyz file. "
             "(i): " +
             std::to_string(interstitials.size()));
-        return std::make_tuple(stAtoms.first, ErrorStatus::siaOverflow, DefectVecT{}, vector<int>{}, ids);
+        return std::make_tuple(std::get<0>(stAtoms), ErrorStatus::siaOverflow, DefectVecT{}, vector<int>{}, ids);
       }
       isPre = false;
     }
@@ -537,7 +538,7 @@ avi::DefectRes avi::atoms2defects(
           "file. (i, v): " +
           std::to_string(interstitials.size()) + ", " +
           std::to_string(vacancies.size()));
-      return std::make_tuple(stAtoms.first, ErrorStatus::defectOverflow, DefectVecT{}, vector<int>{}, ids);
+      return std::make_tuple(std::get<0>(stAtoms), ErrorStatus::defectOverflow, DefectVecT{}, vector<int>{}, ids);
     }
     if (interThresh.size() > extraFactor * interstitials.size()) {
       Logger::inst().log_error(errMsg + 
@@ -547,7 +548,7 @@ avi::DefectRes avi::atoms2defects(
           std::to_string(interstitials.size()) + ", " +
           std::to_string(vacancies.size()) + ", " +
           std::to_string(interThresh.size()));
-      return std::make_tuple(stAtoms.first, ErrorStatus::threshOverflow, DefectVecT{}, vector<int>{}, ids);
+      return std::make_tuple(std::get<0>(stAtoms), ErrorStatus::threshOverflow, DefectVecT{}, vector<int>{}, ids);
     }
     if (interstitials.size() != vacancies.size()) {
       if ((int(interstitials.size()) / int(vacancies.size())) > extraFactor) {
@@ -575,7 +576,7 @@ avi::DefectRes avi::atoms2defects(
             std::to_string(interstitials.size()) + ", " +
             std::to_string(vacancies.size()) + ", " +
             std::to_string(interThresh.size()));
-        return std::make_tuple(stAtoms.first, ErrorStatus::siaVacDiffOverflow, DefectVecT{}, vector<int>{}, ids);
+        return std::make_tuple(std::get<0>(stAtoms), ErrorStatus::siaVacDiffOverflow, DefectVecT{}, vector<int>{}, ids);
       }
     }
   }
@@ -674,7 +675,7 @@ avi::DefectRes avi::atoms2defects(
           std::to_string(extraDefects));
     }
   }
-  return std::make_tuple(stAtoms.first, ErrorStatus::noError, std::move(defects), std::move(vacSiasNu), std::move(ids));
+  return std::make_tuple(std::get<0>(stAtoms), ErrorStatus::noError, std::move(defects), std::move(vacSiasNu), std::move(ids));
 }
 
 auto cleanDisplaced(avi::DefectVecT &inter, avi::DefectVecT &vac,

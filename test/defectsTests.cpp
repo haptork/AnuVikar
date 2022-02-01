@@ -626,7 +626,8 @@ SCENARIO("Given xyz coordinates of all the lattice atoms, output only the "
       info.originY = origin[1];
       info.originZ = origin[2];
       ExtraInfo extraInfo;
-      auto fsAtoms = std::make_pair(avi::xyzFileStatus::reading, atoms);
+      std::vector<std::vector<double>> ecs;
+      auto fsAtoms = std::make_tuple(avi::xyzFileStatus::reading, atoms, ecs);
       auto ungroupedDefectsDumbbellPair = atoms2defects(fsAtoms, info, extraInfo, config, true);
       auto ungroupedDefects = std::get<2>(ungroupedDefectsDumbbellPair);
       REQUIRE(ungroupedDefects.size() == 4); // 2 interstitials, 2 vacancies
@@ -739,7 +740,8 @@ SCENARIO("Given xyz coordinates of all the lattice atoms, output only the "
       info.originY = origin[1];
       info.originZ = origin[2];
       ExtraInfo extraInfo;
-      auto fsAtoms = std::make_pair(avi::xyzFileStatus::reading, atoms);
+      std::vector<std::vector<double>> ecs;
+      auto fsAtoms = std::make_tuple(avi::xyzFileStatus::reading, atoms, ecs);
       auto ungroupedDefectsDumbbellPair = atoms2defects(fsAtoms, info, extraInfo, config, true);
       auto ungroupedDefects = std::get<2>(ungroupedDefectsDumbbellPair);
       REQUIRE(ungroupedDefects.size() == 10);
@@ -824,7 +826,8 @@ SCENARIO("Given xyz coordinates of all the lattice atoms, output only the "
       info.originY = origin[1];
       info.originZ = origin[2];
       ExtraInfo extraInfo;
-      auto fsAtoms = std::make_pair(avi::xyzFileStatus::reading, atoms);
+      std::vector<std::vector<double>> ecs;
+      auto fsAtoms = std::make_tuple(avi::xyzFileStatus::reading, atoms, ecs);
       auto ungroupedDefectsDumbbellPair = atoms2defects(fsAtoms, info, extraInfo, config, true);
       auto ungroupedDefects = std::get<2>(ungroupedDefectsDumbbellPair);
       CHECK(ungroupedDefects.size() == 200);
@@ -919,7 +922,8 @@ SCENARIO("Given xyz coordinates of all the lattice atoms, output only the "
       info.originY = origin[1];
       info.originZ = origin[2];
       ExtraInfo extraInfo;
-      auto fsAtoms = std::make_pair(avi::xyzFileStatus::reading, atoms);
+      std::vector<std::vector<double>> ecs;
+      auto fsAtoms = std::make_tuple(avi::xyzFileStatus::reading, atoms, ecs);
       auto ungroupedDefectsDumbbellPair = atoms2defects(fsAtoms, info, extraInfo, config, true);
       auto ungroupedDefects = std::get<2>(ungroupedDefectsDumbbellPair);
       // it should have been 4 but now alot more defects are counted as the
@@ -963,7 +967,8 @@ SCENARIO("Given xyz coordinates of all the lattice atoms, output only the "
       info.originY = origin[1];
       info.originZ = origin[2];
       ExtraInfo extraInfo;
-      auto fsAtoms = std::make_pair(avi::xyzFileStatus::reading, atoms);
+      std::vector<std::vector<double>> ecs;
+      auto fsAtoms = std::make_tuple(avi::xyzFileStatus::reading, atoms, ecs);
       auto ungroupedDefectsDumbbellPair = atoms2defects(fsAtoms, info, extraInfo, config, true);
       REQUIRE(std::get<2>(ungroupedDefectsDumbbellPair).empty());
     }
@@ -994,7 +999,8 @@ SCENARIO("Given xyz coordinates of all the lattice atoms, output only the "
       info.originX = origin[0];
       info.originY = origin[1];
       info.originZ = origin[2];
-      auto fsAtoms = std::make_pair(avi::xyzFileStatus::reading, atoms);
+      std::vector<std::vector<double>> ecs;
+      auto fsAtoms = std::make_tuple(avi::xyzFileStatus::reading, atoms, ecs);
       auto ungroupedDefectsDumbbellPair = atoms2defects(fsAtoms, info, extraInfo, config, true);
       REQUIRE(std::get<2>(ungroupedDefectsDumbbellPair).empty());
     }
