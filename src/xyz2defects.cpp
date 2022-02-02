@@ -312,7 +312,7 @@ avi::xyz2defectsTime(avi::InputInfo &mainInfo,
   //std::cout << "\natoms: " << atoms.second.size() << '\n';
   //std::cout << "\nxyzCol: " << mainInfo.xyzColumnStart << '\n';
   if (std::get<1>(atoms).empty())
-    return std::make_tuple(std::get<0>(atoms), ErrorStatus::xyzFileReadError, avi::DefectVecT{}, std::vector<int>{}, std::vector<size_t>{});
+    return std::make_tuple(std::get<0>(atoms), ErrorStatus::xyzFileReadError, avi::DefectVecT{}, std::vector<int>{}, std::vector<std::vector<double>>{});
   return  atoms2defects(atoms, mainInfo, extraInfo, config, (mainInfo.structure == "bcc"));
 }
 
@@ -322,7 +322,7 @@ avi::displaced2defectsTime(avi::InputInfo &mainInfo,
                       const avi::Config &config, std::istream &infile, avi::frameStatus &fs) {
   auto atoms = getDisplacedAtomsTime(mainInfo, extraInfo, config, infile, fs);
   if (atoms.second.empty())
-    return std::make_tuple(atoms.first, ErrorStatus::noError, avi::DefectVecT{}, std::vector<int>{}, std::vector<size_t>{});
+    return std::make_tuple(atoms.first, ErrorStatus::noError, avi::DefectVecT{}, std::vector<int>{}, std::vector<std::vector<double>>{});
   return avi::displacedAtoms2defects(atoms, mainInfo.latticeConst);
 }
 
@@ -412,7 +412,8 @@ avi::DefectRes avi::atoms2defects(
   using std::get;
   using std::tuple;
   using std::vector;
-  bool isIncludeId = (!(std::get<2>(stAtoms)).empty() && !std::get<2>(stAtoms)[0].empty()) || info.extraColumnStart == -2;
+  bool isExtraCol = (!(std::get<2>(stAtoms)).empty() && !std::get<2>(stAtoms)[0].empty());
+  bool isIncludeId = isExtraCol || info.extraColumnStart == -2;
   auto &atoms = std::get<1>(stAtoms);
   std::sort(begin(atoms), end(atoms));
   // std::cout << "\natoms: " << std::get<0>(atoms[0])[0] << " | " << std::get<0>(atoms[atoms.size() - 1])[0] << '\n';
@@ -440,7 +441,7 @@ avi::DefectRes avi::atoms2defects(
   vector<tuple<Coords, Coords, bool, size_t>> interstitials;
   vector<tuple<Coords, bool>> vacancies;
   std::vector<int> vacSias;
-  std::vector<size_t> ids;
+  std::vector<std::vector<double>> ids;
   vector<tuple<Coords, Coords, bool, size_t>> freeInterstitials;
   const auto boundaryThresh = (config.isIgnoreBoundaryDefects) ? 0.501 : 0.00;
   auto boundaryPred = [](Coords ar, Coords min, Coords max, double thresh) {
@@ -624,7 +625,10 @@ avi::DefectRes avi::atoms2defects(
       //std::cout << j << ", ";
       auto &jt = interstitials[j];
       defects.emplace_back(std::move(get<1>(jt)), true, count++, get<2>(jt));
-      ids.emplace_back(get<3>(jt));
+      //if (isIncludeId) ids.emplace_back(double(get<3>(jt)));
+      if (isExtraCol) {
+        ids[ids.size()-1].insert(ids[ids.size()-1].end(), std::get<2>(stAtoms)[get<3>(jt)].begin(), std::get<2>(stAtoms)[get<3>(jt)].end());
+      }
     }
     //std::cout << '\n';
     vacSiasNu.push_back(defects.size());
@@ -650,13 +654,15 @@ avi::DefectRes avi::atoms2defects(
       defects.emplace_back(anchor2coord(std::move(get<1>(it))), false, count++,
                            false);
       defects.emplace_back(std::move(get<2>(it)), true, count++, false);
-      ids.emplace_back(get<3>(it));
+      size_t columnId = std::get<3>(it);
+      //ids.emplace_back(columnId, std::get<2>(stAtoms)[columnId]);
       vacSiasNu.emplace_back(defects.size());
     }
   }
   for (const auto &jt : freeInterstitials) {
     defects.emplace_back(std::move(get<1>(jt)), true, count++, get<2>(jt));
-    ids.emplace_back(get<3>(jt));
+    size_t columnId = get<3>(jt);
+    //ids.emplace_back(columnId, get<2>(stAtoms)[columnId]);
   }
   if (config.safeRunChecks && extraDefects > interstitials.size()) {
 
@@ -821,7 +827,7 @@ avi::DefectRes avi::displacedAtoms2defects(
   }
   */
   std::vector<int> latticeSiteGroups;
-  std::vector<size_t> ids; // TODO fill these
+  std::vector<std::vector<double>> ids; // TODO fill these
   latticeSiteGroups.reserve(vacSias.size());
   for (auto i = 0; i < vacSias.size(); i++) {
     if (vacSias[i].size() == 1 && vacSias[i][0].first < threshDistSqr) continue;

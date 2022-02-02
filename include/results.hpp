@@ -22,7 +22,7 @@ using DefectT = std::tuple<std::array<double, 3>, bool, int, bool>;
 using DefectVecT =
     std::vector<std::tuple<std::array<double, 3>, bool, int, bool>>;
 
-using DefectRes = std::tuple<xyzFileStatus, ErrorStatus, DefectVecT, std::vector<int>, std::vector<size_t>>;
+using DefectRes = std::tuple<xyzFileStatus, ErrorStatus, DefectVecT, std::vector<int>, std::vector<std::vector<double>>>;
 
 struct ClusterSizeT {
   int surviving;
@@ -59,7 +59,7 @@ struct resultsT {
   double inClusterFractionV;
   DefectVecT defects;
   std::vector<int> coDefects;
-  std::vector<size_t> extraCols;
+  std::vector<std::vector<double>> extraCols;
   std::array<std::vector<double>, 2> dists;
   std::array<std::vector<double>, 2> angles;
   std::unordered_map<int, std::vector<int>> clusters;
