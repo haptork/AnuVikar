@@ -25,10 +25,10 @@ getCoord(const std::string &line, const avi::frameStatus &fs,
          const avi::InputInfo &info, const avi::ExtraInfo &ei);
 
 std::tuple<avi::lineStatus, avi::Coords, std::vector<double>>
-getCoordLammps(const std::string &line, const avi::frameStatus &fs, int);
+getCoordLammps(const std::string &line, const avi::frameStatus &fs, int colStart, int ecStart = -1, int ecEnd = -1);
 
 std::tuple<avi::lineStatus, avi::Coords, std::vector<double>>
-getCoordParcas(const std::string &line, const avi::frameStatus &fs, int);
+getCoordParcas(const std::string &line, const avi::frameStatus &fs, int colStart, int ecStart = -1, int ecEnd = -1);
 
 std::tuple<avi::lineStatus, std::array<avi::Coords, 2>, std::vector<double>>
 getCoordDisplaced(const std::string &line);

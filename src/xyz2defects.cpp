@@ -625,9 +625,11 @@ avi::DefectRes avi::atoms2defects(
       //std::cout << j << ", ";
       auto &jt = interstitials[j];
       defects.emplace_back(std::move(get<1>(jt)), true, count++, get<2>(jt));
-      //if (isIncludeId) ids.emplace_back(double(get<3>(jt)));
+      if (isIncludeId) ids.emplace_back(double(get<3>(jt)));
       if (isExtraCol) {
-        ids[ids.size()-1].insert(ids[ids.size()-1].end(), std::get<2>(stAtoms)[get<3>(jt)].begin(), std::get<2>(stAtoms)[get<3>(jt)].end());
+        auto &dst = ids[ids.size()-1];
+        auto &src = std::get<2>(stAtoms)[get<3>(jt)];
+        dst.insert(dst.end(), src.begin(), src.end());
       }
     }
     //std::cout << '\n';
@@ -654,15 +656,23 @@ avi::DefectRes avi::atoms2defects(
       defects.emplace_back(anchor2coord(std::move(get<1>(it))), false, count++,
                            false);
       defects.emplace_back(std::move(get<2>(it)), true, count++, false);
-      size_t columnId = std::get<3>(it);
-      //ids.emplace_back(columnId, std::get<2>(stAtoms)[columnId]);
+      if (isIncludeId) ids.emplace_back(double(get<3>(it)));
+      if (isExtraCol) {
+        auto &dst = ids[ids.size()-1];
+        auto &src = std::get<2>(stAtoms)[get<3>(it)];
+        dst.insert(dst.end(), src.begin(), src.end());
+      }
       vacSiasNu.emplace_back(defects.size());
     }
   }
   for (const auto &jt : freeInterstitials) {
     defects.emplace_back(std::move(get<1>(jt)), true, count++, get<2>(jt));
-    size_t columnId = get<3>(jt);
-    //ids.emplace_back(columnId, get<2>(stAtoms)[columnId]);
+    if (isIncludeId) ids.emplace_back(double(get<3>(jt)));
+    if (isExtraCol) {
+      auto &dst = ids[ids.size()-1];
+      auto &src = std::get<2>(stAtoms)[get<3>(jt)];
+      dst.insert(dst.end(), src.begin(), src.end());
+    }
   }
   if (config.safeRunChecks && extraDefects > interstitials.size()) {
 
