@@ -85,7 +85,7 @@ avi::getCoordGeneric(const std::string &line, const avi::frameStatus &fs, int co
 }
 
 std::tuple<avi::lineStatus, avi::Coords, std::vector<double>>
-getCoordCdb(const std::string &line, const avi::frameStatus &fs,
+avi::getCoordCdb(const std::string &line, const avi::frameStatus &fs,
              const std::string &substrate, int columnStart, int ecStart, int ecEnd) {
   using avi::lineStatus;
   avi::Coords c;
@@ -136,6 +136,7 @@ getCoordCdb(const std::string &line, const avi::frameStatus &fs,
     if (ecStart <= curC) {
       try {
         auto curVal = std::stod(std::string{first, second});
+        //std::cout << "curC, val:" << curC << ", " << curVal << '\n';
         ec.push_back(curVal);
       } catch (const std::invalid_argument &) {
         return std::make_tuple(avi::lineStatus::frameBorder, c, ec);

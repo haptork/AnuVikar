@@ -36,5 +36,9 @@ getCoordDisplaced(const std::string &line);
 std::tuple<avi::lineStatus, avi::Coords, std::vector<double>>
 getCoordGeneric(const std::string &line, const avi::frameStatus &fs, int columnStart, int ecStart, int ecEnd);
 
+std::tuple<avi::lineStatus, avi::Coords, std::vector<double>>
+getCoordCdb(const std::string &line, const avi::frameStatus &fs,
+             const std::string &substrate, int columnStart, int ecStart, int ecEnd);
+
 } // namespace avi
 #endif
