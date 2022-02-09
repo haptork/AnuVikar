@@ -33,5 +33,8 @@ getCoordParcas(const std::string &line, const avi::frameStatus &fs, int colStart
 std::tuple<avi::lineStatus, std::array<avi::Coords, 2>, std::vector<double>>
 getCoordDisplaced(const std::string &line);
 
+std::tuple<avi::lineStatus, avi::Coords, std::vector<double>>
+getCoordGeneric(const std::string &line, const avi::frameStatus &fs, int columnStart, int ecStart, int ecEnd);
+
 } // namespace avi
 #endif

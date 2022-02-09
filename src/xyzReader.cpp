@@ -13,7 +13,7 @@
 #include <xyzReader.hpp>
 
 std::tuple<avi::lineStatus, avi::Coords, std::vector<double>>
-getCoordGeneric(const std::string &line, const avi::frameStatus &fs, int columnStart, int ecStart, int ecEnd) {
+avi::getCoordGeneric(const std::string &line, const avi::frameStatus &fs, int columnStart, int ecStart, int ecEnd) {
   avi::Coords c;
   std::vector<double> ec;
   auto first = std::begin(line);
@@ -44,7 +44,6 @@ getCoordGeneric(const std::string &line, const avi::frameStatus &fs, int columnS
                          [](int ch) { return !std::isspace(ch); });
     second =
         std::find_if(first, end(line), [](int ch) { return std::isspace(ch); });
-    curC++;
     if (first >= second) {
       if (i > 2) return std::make_tuple(avi::lineStatus::coords, c, ec);
       return std::make_tuple(avi::lineStatus::frameBorder, c, ec);
@@ -61,8 +60,16 @@ getCoordGeneric(const std::string &line, const avi::frameStatus &fs, int columnS
     } catch (const std::out_of_range &) {
       return std::make_tuple(avi::lineStatus::frameBorder, c, ec);
     }
+    curC++;
   }
   for (; curC <= ecEnd; curC++) {
+    first = std::find_if(second, end(line),
+                         [](int ch) { return !std::isspace(ch); });
+    second =
+        std::find_if(first, end(line), [](int ch) { return std::isspace(ch); });
+    if (first >= second) {
+      return std::make_tuple(avi::lineStatus::frameBorder, c, ec);
+    }
     if (ecStart <= curC) {
       try {
         auto curVal = std::stod(std::string{first, second});
@@ -72,13 +79,6 @@ getCoordGeneric(const std::string &line, const avi::frameStatus &fs, int columnS
       } catch (const std::out_of_range &) {
         return std::make_tuple(avi::lineStatus::frameBorder, c, ec);
       }
-    }
-    first = std::find_if(second, end(line),
-                         [](int ch) { return !std::isspace(ch); });
-    second =
-        std::find_if(first, end(line), [](int ch) { return std::isspace(ch); });
-    if (first >= second) {
-      return std::make_tuple(avi::lineStatus::frameBorder, c, ec);
     }
   }
   return std::make_tuple(avi::lineStatus::coords, c, ec);
