@@ -183,8 +183,10 @@ getAtomsTime(avi::InputInfo &info, avi::ExtraInfo &extraInfo,
     if (ls == avi::lineStatus::coords &&
         fs == avi::frameStatus::inFrame) {
       atoms.emplace_back(c);
+      get<2>(res).emplace_back(ec);
     } else if (ls == avi::lineStatus::inFrameCoords) {
       atoms.emplace_back(c);
+      get<2>(res).emplace_back(ec);
     } else if (ls == avi::lineStatus::frameBorder) {
       if (fs != avi::frameStatus::prelude) {
         fs = avi::frameStatus::inFrame;
@@ -287,8 +289,8 @@ getAtomsTime(avi::InputInfo &info, avi::ExtraInfo &extraInfo,
   auto obj = avi::AddOffset{info.latticeConst, info.structure, origin};
   // std::cout << "latInfo: " << info.latticeConst << ", " << info.structure << ", " << origin[0] << '\n';
   std::transform(begin(atoms), end(atoms), std::back_inserter(std::get<1>(res)), obj);
-  // std::cout << "\natoms1: " << atoms[0][0] << " | " << atoms[atoms.size() - 1][0] << '\n';
-  // std::cout << "\natoms res: " << std::get<0>(res.second[0])[0] << " | " << std::get<0>(res.second[res.second.size() - 1])[0] << '\n';
+  //std::cout << "\natoms1: " << atoms[0][0] << " | " << atoms[atoms.size() - 1][0] << '\n';
+  std::cout << "\natoms res: " << std::get<3>(std::get<1>(res)[0]) << " | " << std::get<3>(std::get<1>(res)[1]) << "\n";
   if (info.boxSize < 0.0) { info.boxSize = info.latticeConst * info.ncell; }
   return res;
 }
@@ -625,7 +627,7 @@ avi::DefectRes avi::atoms2defects(
       //std::cout << j << ", ";
       auto &jt = interstitials[j];
       defects.emplace_back(std::move(get<1>(jt)), true, count++, get<2>(jt));
-      if (isIncludeId) ids.emplace_back(double(get<3>(jt)));
+      if (isIncludeId) ids.push_back(std::vector<double>{double(get<3>(jt))});
       if (isExtraCol) {
         auto &dst = ids[ids.size()-1];
         auto &src = std::get<2>(stAtoms)[get<3>(jt)];

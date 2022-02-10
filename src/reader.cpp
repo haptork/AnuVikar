@@ -106,6 +106,7 @@ std::pair<avi::xyzFileStatus, avi::ErrorStatus>
           : avi::xyz2defectsTime(info, extraInfo, config, infile, fs);
   if (res.err != avi::ErrorStatus::noError) return std::make_pair(fl, res.err);
   res.defects = avi::groupDefects(std::move(res.defects), info.latticeConst);
+  std::cout << "\nec size at reader: " << res.extraCols.size() << '\n';
   auto clusterSizeMap = avi::clusterSizes(res.defects);
   filterZeroClusters(res.defects, clusterSizeMap,
                      config.filterZeroSizeClusters);

@@ -103,6 +103,17 @@ std::string errorStr(avi::ErrorStatus err) {
   return "Unknown error!";
 }
 
+void printExtraCols(std::vector<std::vector<double>> ec, std::ostream &outfile) {
+  size_t i = 0;
+  for (const auto &it : ec) {
+    outfile << "[";
+    avi::writeVector(it, outfile);
+    outfile << "]";
+    if (i != ec.size() - 1) outfile << ", ";
+    ++i;
+  }
+}
+
 void avi::resToKeyValue(std::ostream &outfile,
                              const avi::resultsT &res) {
   auto printDefects = [&outfile](const avi::DefectVecT &d) {
@@ -145,6 +156,9 @@ void avi::resToKeyValue(std::ostream &outfile,
   outfile << ",\n";
   outfile << "\"coDefects\": [";
   avi::writeVector(res.coDefects, outfile);
+  outfile << "],\n";
+  outfile << "\"extraCols\": [";
+  printExtraCols(res.extraCols, outfile);
   outfile << "]\n";
 }
 
@@ -167,6 +181,8 @@ void avi::infoToKeyValue(std::ostream &outfile,
           << "\"recphi\":" << ei.recphi << ",\n"
           << "\"pka\": [" << ei.xrec << ", " << ei.yrec << ", "
           << ei.zrec << "],\n"
+          << "\"xyzColumnStart\":" << i.xyzColumnStart << ",\n"
+          << "\"extraColumns\": [" << i.extraColumnStart << ", " << i.extraColumnEnd << "],\n"
           << "\"latticeConst\":" << i.latticeConst << ",\n"
           << "\"temperature\":" << i.temperature << ",\n"
           << "\"infile\": \"" << ei.infile << "\",\n"

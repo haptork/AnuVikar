@@ -133,8 +133,17 @@ avi::extractInfoLammps(std::string fpath, std::string ftag) {
         extraInfo.author = val;
       } else if (cmd == "potentialUsed") {
         extraInfo.potentialUsed = val;
-      } else if (cmd == "x-column") {
+      } else if (cmd == "xColumn") {
         mainInfo.xyzColumnStart = std::stoi(val);
+      } else if (cmd == "structure") {
+        mainInfo.structure = val;
+      } else if (cmd == "extraColumn") {
+        if (mainInfo.extraColumnStart == -1) { // start only
+          mainInfo.extraColumnStart = std::stoi(val);
+          mainInfo.extraColumnEnd = mainInfo.extraColumnStart;
+        } else {
+          mainInfo.extraColumnEnd = std::stoi(val);;
+        }
       }
       /*
             } else if (cmd == "latConstToUse") {
@@ -150,7 +159,12 @@ avi::extractInfoLammps(std::string fpath, std::string ftag) {
   if (mainInfo.latticeConst < 0.0) {
     return std::make_tuple(mainInfo, extraInfo, false);
   }
-  mainInfo.structure = "bcc"; // TODO: extend for fcc, no assumption
+  if (mainInfo.xyzColumnStart == -1 && mainInfo.extraColumnStart > -1) {
+    return std::make_tuple(mainInfo, extraInfo, false);
+  }
+  if (mainInfo.structure != "bcc" && mainInfo.structure != "fcc") {
+    return std::make_tuple(mainInfo, extraInfo, false);
+  }
   extraInfo.infile = fpath;
   extraInfo.rectheta =
       (careAboutAngles) ? std::atan(velocity[1] / velocity[0]) : 0.0;
@@ -166,9 +180,10 @@ std::string readStr(std::string msg) {
   return buffer;
 }
 
-std::pair<bool, avi::Coords> readAr(std::string msg) {
+template <size_t N>
+std::pair<bool, std::array<double,  N>> readAr(std::string msg) {
   auto line = readStr(msg);
-  avi::Coords res;
+  std::array<double, N> res;
   if (line.empty()) return std::make_pair(false, res);
   auto first = std::find_if(begin(line), end(line),
                             [](int ch) { return !std::isspace(ch); });
@@ -177,14 +192,13 @@ std::pair<bool, avi::Coords> readAr(std::string msg) {
       std::find_if(first, end(line), [](int ch) { return std::isspace(ch); });
   try {
     res[0] = std::stod(std::string{first, second});
-    res[1] = res[0];
-    res[2] = res[1];
+    for (int i = 1; i < N; ++i) res[i] = res[0];
   } catch (const std::invalid_argument &) {
     return std::make_pair(false, res);
   } catch (const std::out_of_range &) {
     return std::make_pair(false, res);
   }
-  for (int i = 1; i < 3; ++i) {
+  for (int i = 1; i < N; ++i) {
     first = std::find_if(second, end(line),
                          [](int ch) { return !std::isspace(ch); });
     second =
@@ -252,7 +266,7 @@ std::tuple<avi::InputInfo, avi::ExtraInfo, bool> avi::infoFromStdIn() {
     }
   }
   std::cout << "Optional parameters (Press return / enter to continue with default): \n";
-  auto origin = readAr("offset used for simulation: ");
+  auto origin = readAr<3>("offset used for simulation: ");
   mainInfo.originType = origin.first ? 0 : 1;
   if (origin.first) {
     mainInfo.originX = origin.second[0];
@@ -260,6 +274,7 @@ std::tuple<avi::InputInfo, avi::ExtraInfo, bool> avi::infoFromStdIn() {
     mainInfo.originZ = origin.second[2];
   }
   extraInfo.substrate = readStr("substrate symbol (e.g.: W/Fe): ");
+  mainInfo.structure = readStr("structure (bcc / fcc (default: bcc)): ");
   extraInfo.energy = readDouble("PKA energy (in keV): ");
   mainInfo.temperature = readDouble("Temperature (K): ");
   extraInfo.author = readStr("Author name: ");
@@ -276,9 +291,13 @@ std::tuple<avi::InputInfo, avi::ExtraInfo, bool> avi::infoFromStdIn() {
   mainInfo.xyzFileType = (xyzFormat < codes.size() && xyzFormat > 0) ? codes[xyzFormat - 1] : codes[0];
   auto xyzCol = readInt("column number for x-coordinate (subsequent columns will be taken as y & z) (default: auto): ");
   mainInfo.xyzColumnStart = (xyzFormat > 0) ? xyzCol : -1;
+  auto ecInfo = readAr<2>("extra columns (default: none): ");
+  if (ecInfo.first) {
+    mainInfo.extraColumnStart = ecInfo.second[0];
+    mainInfo.extraColumnEnd = ecInfo.second[1];
+  }
   return std::make_tuple(mainInfo, extraInfo, true);
 }
-
 
 // extract information from input file
 std::tuple<avi::InputInfo, avi::ExtraInfo, bool>
