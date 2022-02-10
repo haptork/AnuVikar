@@ -4,3 +4,5 @@ latticeConstant = 2.85532
 ncell = 10
 recen = 1
 offset = 0.0
+xColumn = 2
+extraColumn = 1
