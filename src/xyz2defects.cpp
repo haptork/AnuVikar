@@ -658,7 +658,7 @@ avi::DefectRes avi::atoms2defects(
       defects.emplace_back(anchor2coord(std::move(get<1>(it))), false, count++,
                            false);
       defects.emplace_back(std::move(get<2>(it)), true, count++, false);
-      if (isIncludeId) ids.emplace_back(double(get<3>(it)));
+      if (isIncludeId) ids.push_back(std::vector<double>{double(get<3>(it))});
       if (isExtraCol) {
         auto &dst = ids[ids.size()-1];
         auto &src = std::get<2>(stAtoms)[get<3>(it)];
@@ -669,7 +669,7 @@ avi::DefectRes avi::atoms2defects(
   }
   for (const auto &jt : freeInterstitials) {
     defects.emplace_back(std::move(get<1>(jt)), true, count++, get<2>(jt));
-    if (isIncludeId) ids.emplace_back(double(get<3>(jt)));
+    if (isIncludeId) ids.push_back(std::vector<double>{double(get<3>(jt))});
     if (isExtraCol) {
       auto &dst = ids[ids.size()-1];
       auto &src = std::get<2>(stAtoms)[get<3>(jt)];
