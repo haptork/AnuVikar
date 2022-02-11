@@ -21,6 +21,8 @@ struct InfoPyInput {
   int originType;
   double temperature;
   int xyzColumnStart;
+  int extraColumnStart;
+  int extraColumnEnd;
   const char *xyzFileType;
   const char *xyzFilePath;
   const char *structure;
@@ -91,6 +93,8 @@ auto pyInfoToCppInfo(const InfoPyInput &pyinput,
   input.originType = pyinput.originType;
   input.temperature = pyinput.temperature;
   input.xyzColumnStart = pyinput.xyzColumnStart;
+  input.extraColumnStart = pyinput.extraColumnStart;
+  input.extraColumnEnd = pyinput.extraColumnEnd;
   input.xyzFilePath = std::string{pyinput.xyzFilePath};
   input.structure = std::string{pyinput.structure};
   std::string simCodeStr = std::string{pyinput.xyzFileType};

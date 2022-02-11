@@ -102,6 +102,8 @@ class _InputInfoCpp(Structure):
                 ("originType", c_int),
                 ("temperature", c_double),
                 ("xyzColumnStart", c_int),
+                ("extraColumnStart", c_int),
+                ("extraColumnEnd", c_int),
                 ("xyzFileType", c_char_p),
                 ("xyzFilePath", c_char_p),
                 ("structure", c_char_p)
@@ -477,6 +479,8 @@ def getDefaultInfos():
         "originType": 1,
         "temperature": 0.0,
         "xyzColumnStart": -1,
+        "extraColumnStart": -1,
+        "extraColumnEnd": -1,
         "xyzFileType": "CASCADESDBLIKECOLS",
         "xyzFilePath": "",
         "structure": "bcc"
