@@ -290,7 +290,7 @@ getAtomsTime(avi::InputInfo &info, avi::ExtraInfo &extraInfo,
   // std::cout << "latInfo: " << info.latticeConst << ", " << info.structure << ", " << origin[0] << '\n';
   std::transform(begin(atoms), end(atoms), std::back_inserter(std::get<1>(res)), obj);
   //std::cout << "\natoms1: " << atoms[0][0] << " | " << atoms[atoms.size() - 1][0] << '\n';
-  std::cout << "\natoms res: " << std::get<3>(std::get<1>(res)[0]) << " | " << std::get<3>(std::get<1>(res)[1]) << "\n";
+  //std::cout << "\natoms res: " << std::get<3>(std::get<1>(res)[0]) << " | " << std::get<3>(std::get<1>(res)[1]) << "\n";
   if (info.boxSize < 0.0) { info.boxSize = info.latticeConst * info.ncell; }
   return res;
 }
