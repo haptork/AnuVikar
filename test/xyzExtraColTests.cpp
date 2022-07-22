@@ -168,4 +168,107 @@ TEST_CASE("Extra coordinates from a line from Cdb file",
         avi::getCoordCdb("1.0 2.0 3.0 4.0", avi::frameStatus::inFrame, "1.0", 2, 5, 6);
     CHECK(ls == avi::lineStatus::frameBorder);
   }
+          }
+
+  TEST_CASE(
+    "Read displaced (interstitial and vacancy pair) coordinates with extra cols from a line",
+    "[defectsTest]") {
+  SECTION("Normal cases") {
+    avi::lineStatus ls;
+    std::array<Coords, 2> c;
+    std::vector<double> ec;
+    // coords
+    std::tie(ls, c, ec) =
+        avi::getCoordDisplaced("1 -76.770403   +7.2e2   .7  +76.770403   "
+                                    "-7.2e2   0.700 6891 112087 1 ");
+    CHECK(ls == avi::lineStatus::coords);
+    CHECK(c == std::array<Coords, 2>{{Coords{{-76.770403, 720, 0.7}},
+                                      Coords{{76.770403, -720, 0.7}}}});
+    CHECK(ec.empty());
+    std::tie(ls, c, ec) =
+        avi::getCoordDisplaced("1 -76.770403   +7.2e2   .7  +76.770403   "
+                                    "-7.2e2   0.700 6891 112087 1 ", 1, 1);
+    CHECK(ls == avi::lineStatus::coords);
+    CHECK(c == std::array<Coords, 2>{{Coords{{-76.770403, 720, 0.7}},
+                                      Coords{{76.770403, -720, 0.7}}}});
+    REQUIRE(ec.size() == 1);
+    CHECK(ec[0] == 6891.0);
+
+    std::tie(ls, c, ec) =
+        avi::getCoordDisplaced("1 -76.770403   +7.2e2   .7  +76.770403   "
+                                    "-7.2e2   0.700 6891 112087 1 ", 1, 2);
+    CHECK(ls == avi::lineStatus::coords);
+    CHECK(c == std::array<Coords, 2>{{Coords{{-76.770403, 720, 0.7}},
+                                      Coords{{76.770403, -720, 0.7}}}});
+    REQUIRE(ec.size() == 2);
+    CHECK(ec[0] == 6891.0);
+    CHECK(ec[1] == 112087.0);
+
+    std::tie(ls, c, ec) =
+        avi::getCoordDisplaced("1 -76.770403   +7.2e2   .7  +76.770403   "
+                                    "-7.2e2   0.700 6891 112087 1 ", 2, 3);
+    CHECK(ls == avi::lineStatus::coords);
+    CHECK(c == std::array<Coords, 2>{{Coords{{-76.770403, 720, 0.7}},
+                                      Coords{{76.770403, -720, 0.7}}}});
+    REQUIRE(ec.size() == 2);
+    CHECK(ec[0] == 112087.0);
+    CHECK(ec[1] == 1.0);
+
+    std::tie(ls, c, ec) =
+        avi::getCoordDisplaced("1 -76.770403   +7.2e2   .7  +76.770403   "
+                                    "-7.2e2   0.700 6891 112087 1 ", 1, 3);
+    CHECK(ls == avi::lineStatus::coords);
+    CHECK(c == std::array<Coords, 2>{{Coords{{-76.770403, 720, 0.7}},
+                                      Coords{{76.770403, -720, 0.7}}}});
+    REQUIRE(ec.size() == 3);
+    CHECK(ec[0] == 6891.0);
+    CHECK(ec[1] == 112087.0);
+    CHECK(ec[2] == 1.0);
+
+    std::tie(ls, c, ec) =
+        avi::getCoordDisplaced("1 -76.770403   +7.2e2   .7  +76.770403   "
+                                    "-7.2e2   0.700 6891 112087 1 ", 1, 4);
+    CHECK(ls == avi::lineStatus::garbage);
+
+    std::tie(ls, c, ec) =
+        avi::getCoordDisplaced("1 -76.770403   +7.2e2   .7  +76.770403   "
+                                    "-7.2e2   0.700 6891 112087 1 ", 1, -2);
+    CHECK(ls == avi::lineStatus::coords);
+    REQUIRE(ec.size() == 3);
+    CHECK(ec[0] == 6891.0);
+    CHECK(ec[1] == 112087.0);
+    CHECK(ec[2] == 1.0);
+
+    std::tie(ls, c, ec) =
+        avi::getCoordDisplaced("1 -76.770403   +7.2e2   .7  +76.770403   "
+                                    "-7.2e2   0.700 6891 112087 1 ", 1, -1);
+    CHECK(ls == avi::lineStatus::coords);
+    REQUIRE(ec.size() == 3);
+    CHECK(ec[0] == 6891.0);
+    CHECK(ec[1] == 112087.0);
+    CHECK(ec[2] == 1.0);
+
+    std::tie(ls, c, ec) =
+        avi::getCoordDisplaced("1 -76.770403   +7.2e2   .7  +76.770403   "
+                                    "-7.2e2   0.700 6891 112087 1 ", -2, -2);
+    CHECK(ls == avi::lineStatus::coords);
+    REQUIRE(ec.size() == 3);
+    CHECK(ec[0] == 6891.0);
+    CHECK(ec[1] == 112087.0);
+    CHECK(ec[2] == 1.0);
+
+    std::tie(ls, c, ec) = avi::getCoordDisplaced(
+        "1  -76.770403   +7.2e2  -76.770403   +7.2e2   .7  334 3 what", 1, 1);
+    CHECK(ls == avi::lineStatus::coords);
+    REQUIRE(ec.size() == 1);
+    CHECK(ec[0] == 3.0);
+
+    std::tie(ls, c, ec) = avi::getCoordDisplaced(
+        "1  -76.770403   +7.2e2  -76.770403   +7.2e2   .7  334", 1, 1);
+    CHECK(ls == avi::lineStatus::garbage);
+
+    std::tie(ls, c, ec) =
+        avi::getCoordDisplaced("1 34 2.5 3.5 1.0 3.0 3.5 what", 1, 1);
+    CHECK(ls == avi::lineStatus::garbage);
+  }
 }

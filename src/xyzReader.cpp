@@ -369,7 +369,7 @@ avi::getCoordParcas(const std::string &line,
 
 
 std::tuple<avi::lineStatus, std::array<avi::Coords, 2>, std::vector<double>>
-avi::getCoordDisplaced(const std::string &line) {
+avi::getCoordDisplaced(const std::string &line, int ecStart, int ecEnd) {
   std::array<avi::Coords, 2> c;
   std::vector<double> ec; // extra columns
   auto first = std::find_if(begin(line), end(line),
@@ -390,7 +390,7 @@ avi::getCoordDisplaced(const std::string &line) {
       return std::make_tuple(avi::lineStatus::garbage, c, ec);
     }
   }
-  for (auto j = 0; j < 2; ++j)
+  for (auto j = 0; j < 2; ++j) {
     for (auto i = 0; i < 3; ++i) {
       first = std::find_if(second, end(line),
                            [](int ch) { return !std::isspace(ch); });
@@ -406,5 +406,32 @@ avi::getCoordDisplaced(const std::string &line) {
         return std::make_tuple(avi::lineStatus::garbage, c, ec);
       }
     }
+  }
+  auto curC = 1;
+  if (ecStart == -2) ecStart = 1;
+  if ((ecStart > 0 && ecEnd == -1) || ecEnd == -2) ecEnd = 9999;
+  for (; curC <= ecEnd; curC++) {
+    first = std::find_if(second, end(line),
+                         [](int ch) { return !std::isspace(ch); });
+    second =
+        std::find_if(first, end(line), [](int ch) { return std::isspace(ch); });
+    if (first >= second) {
+      if (ecStart == 1 && ecEnd == 9999) {
+        return std::make_tuple(avi::lineStatus::coords, c, ec);
+      } else {
+        return std::make_tuple(avi::lineStatus::garbage, c, ec);
+      }
+    }
+    if (ecStart <= curC) {
+      try {
+        auto curVal = std::stod(std::string{first, second});
+        ec.push_back(curVal);
+      } catch (const std::invalid_argument &) {
+        return std::make_tuple(avi::lineStatus::garbage, c, ec);
+      } catch (const std::out_of_range &) {
+        return std::make_tuple(avi::lineStatus::garbage, c, ec);
+      }
+    }
+  }
   return std::make_tuple(avi::lineStatus::coords, c, ec);
 }

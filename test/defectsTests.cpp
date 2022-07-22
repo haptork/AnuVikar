@@ -1040,13 +1040,15 @@ SCENARIO("Given xyz coordinates of all the displaced atoms, output only the "
             Coords{{-152.263, 1.98476, -36.8897}}}},
           {{Coords{{-163.799, -113.156, 19.7825}},
             Coords{{-151.98, 3.48003, -34.8472}}}}};
-      std::array<std::vector<avi::Coords>, 2> displaced;
+      avi::dispCoords dispC;
+      std::vector<std::vector<double>> ec;
+      auto index = 0;
       for (const auto &x : displacedOld) {
-        displaced[0].emplace_back(std::move(x[0]));
-        displaced[1].emplace_back(std::move(x[1]));
+        dispC.vacs.emplace_back(std::move(x[0]));
+        dispC.sias.emplace_back(std::make_pair(std::move(x[1]), index++));
       }
       auto fs = avi::xyzFileStatus::reading;
-      auto fsDisplaced = std::make_pair(fs, displaced);
+      auto fsDisplaced = std::make_tuple(fs, dispC, ec);
       auto latticeConst = 3.165;
       auto ungroupedDefectsDumbbellPair =
           displacedAtoms2defects(fsDisplaced, latticeConst);

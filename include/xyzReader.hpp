@@ -31,7 +31,7 @@ std::tuple<avi::lineStatus, avi::Coords, std::vector<double>>
 getCoordParcas(const std::string &line, const avi::frameStatus &fs, int colStart, int ecStart = -1, int ecEnd = -1);
 
 std::tuple<avi::lineStatus, std::array<avi::Coords, 2>, std::vector<double>>
-getCoordDisplaced(const std::string &line);
+getCoordDisplaced(const std::string &line, int ecStart = -1, int ecEnd = -1);
 
 std::tuple<avi::lineStatus, avi::Coords, std::vector<double>>
 getCoordGeneric(const std::string &line, const avi::frameStatus &fs, int columnStart, int ecStart, int ecEnd);

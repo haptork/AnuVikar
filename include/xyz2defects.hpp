@@ -16,10 +16,12 @@
 
 namespace avi {
 
-// Gives next expected lattice site given a lattice site
-// in this way it enumerates all the lattice sites
-// Currently only works for bcc
-// TODO: extend for fcc
+
+struct dispCoords {
+    std::vector<std::pair<Coords, size_t>> sias;
+    std::vector<Coords> vacs;
+};
+
 
 // exposed for testing
 Coords getInitialMax(const Coords &origin, const Coords &maxes);
@@ -35,8 +37,8 @@ DefectRes displaced2defectsTime(InputInfo &mainInfo, ExtraInfo &extraInfo,
 DefectRes atoms2defects(std::tuple<xyzFileStatus, std::vector<offsetCoords>, std::vector<std::vector<double>>> atoms,
               InputInfo &info, ExtraInfo &extraInfo, const Config &config, bool isBcc);
 
-DefectRes displacedAtoms2defects(std::pair<xyzFileStatus, std::array<std::vector<Coords>, 2>> d,
-                           double lc);
+DefectRes displacedAtoms2defects(std::tuple<xyzFileStatus, dispCoords,
+                                 std::vector<std::vector<double>>> d, double lc);
 } // namespace avi
 
 #endif // XYZ2DEFECTS_ANUVIKAR_HPP
