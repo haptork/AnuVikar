@@ -40,6 +40,7 @@ enum class ErrorStatus : int {
   inputFileReadError,
   xyzFileDefectsProcessingError,
   xyzFileMissing,
+  xyzFileOpenError,
   xyzFileReadError,
   unknownSimulator,
   unknownError,

@@ -44,8 +44,9 @@ avi::getCoordGeneric(const std::string &line, const avi::frameStatus &fs, int co
                          [](int ch) { return !std::isspace(ch); });
     second =
         std::find_if(first, end(line), [](int ch) { return std::isspace(ch); });
+
     if (first >= second) {
-      if (i > 2) return std::make_tuple(avi::lineStatus::coords, c, ec);
+      if (i > 2) return std::make_tuple(avi::lineStatus::inFrameCoords, c, ec);
       return std::make_tuple(avi::lineStatus::frameBorder, c, ec);
     }
     try {
@@ -56,8 +57,10 @@ avi::getCoordGeneric(const std::string &line, const avi::frameStatus &fs, int co
         c[i] = curVal;
       }
     } catch (const std::invalid_argument &) {
+      if (i > 2) return std::make_tuple(avi::lineStatus::inFrameCoords, c, ec);
       return std::make_tuple(avi::lineStatus::frameBorder, c, ec);
     } catch (const std::out_of_range &) {
+      if (i > 2) return std::make_tuple(avi::lineStatus::inFrameCoords, c, ec);
       return std::make_tuple(avi::lineStatus::frameBorder, c, ec);
     }
     curC++;
@@ -81,7 +84,7 @@ avi::getCoordGeneric(const std::string &line, const avi::frameStatus &fs, int co
       }
     }
   }
-  return std::make_tuple(avi::lineStatus::coords, c, ec);
+  return std::make_tuple(avi::lineStatus::inFrameCoords, c, ec);
 }
 
 std::tuple<avi::lineStatus, avi::Coords, std::vector<double>>

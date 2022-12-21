@@ -156,7 +156,7 @@ extern "C" char *pyProcessFile(InfoPyInput pyInfo, InfoPyExtraInput pyExtraInfo,
     avi::frameStatus fs = avi::frameStatus::prelude;
     std::ifstream xyzfile{info.xyzFilePath};
     if (xyzfile.bad() || !xyzfile.is_open()) {
-      res.err = avi::ErrorStatus::xyzFileReadError;
+      res.err = avi::ErrorStatus::xyzFileOpenError;
     }
     auto frameCount = 0;
     auto initId = extraInfo.id;

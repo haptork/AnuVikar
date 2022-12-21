@@ -67,7 +67,7 @@ std::pair<avi::ErrorStatus,int> avi::processFileTimeCmd(std::string xyzfileName,
   info.xyzFilePath = xyzfileName;
   avi::frameStatus fs = avi::frameStatus::prelude;
   std::ifstream xyzfile{info.xyzFilePath};
-  if (xyzfile.bad() || !xyzfile.is_open()) return std::make_pair(avi::ErrorStatus::xyzFileReadError, 0);
+  if (xyzfile.bad() || !xyzfile.is_open()) return std::make_pair(avi::ErrorStatus::xyzFileOpenError, 0);
   auto success = 0;
   auto frameCount = 0;
   while (true) {
@@ -77,7 +77,7 @@ std::pair<avi::ErrorStatus,int> avi::processFileTimeCmd(std::string xyzfileName,
     frameCount++;
     if (res.second != avi::ErrorStatus::noError) {
       if (config.allFrames) std::cerr << "\nError: " << errToStr(res.second) << " in frame " << frameCount << " of file " << xyzfileName << '\n' << std::flush;
-      else std::cerr << "\nError: " << errToStr(res.second) << " of file " << xyzfileName << '\n' << std::flush;
+      else std::cerr << "\nError: " << errToStr(res.second) << " : file- " << xyzfileName << '\n' << std::flush;
       Logger::inst().log_info("Error processing" + std::to_string(frameCount) +" frame in file \"" + xyzfileName + "\"");
     } else {
       ++success;

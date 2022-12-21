@@ -13,8 +13,10 @@ std::string avi::errToStr(avi::ErrorStatus err) {
     return "Input file read error.";
   } else if (err == avi::ErrorStatus::xyzFileDefectsProcessingError) {
     return "XYZ file has too many defects or zero atoms";
-  } else if (err == avi::ErrorStatus::xyzFileMissing || err == avi::ErrorStatus::xyzFileReadError) {
-    return "XYZ file can not be read, it might be missing.";
+  } else if (err == avi::ErrorStatus::xyzFileMissing || err == avi::ErrorStatus::xyzFileOpenError) {
+    return "XYZ file could not be read, it might be missing.";
+  } else if (err == avi::ErrorStatus::xyzFileReadError) {
+    return "Atoms could not be read from the XYZ file, Please check xCol (coordinate start colmn value & xyz format is correct in the input file.";
   } else if (err == avi::ErrorStatus::unknownSimulator) {
     return "Input file doesn't have LAMMPS/PARCAS/DISPLACED simulation input "
            "type; Refer the sample input files in examples.";
