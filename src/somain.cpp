@@ -94,7 +94,11 @@ auto pyInfoToCppInfo(const InfoPyInput &pyinput,
   input.temperature = pyinput.temperature;
   input.xyzColumnStart = pyinput.xyzColumnStart;
   input.extraColumnStart = pyinput.extraColumnStart;
-  input.extraColumnEnd = pyinput.extraColumnEnd;
+  if (pyinput.extraColumnStart != -1 && pyinput.extraColumnEnd == -1) {
+      input.extraColumnEnd = pyinput.extraColumnStart;
+  } else {
+      input.extraColumnEnd = pyinput.extraColumnEnd;
+  }
   input.xyzFilePath = std::string{pyinput.xyzFilePath};
   input.structure = std::string{pyinput.structure};
   std::string simCodeStr = std::string{pyinput.xyzFileType};
