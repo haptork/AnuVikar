@@ -66,7 +66,7 @@ struct InputInfo {
   double originX;
   double originY;
   double originZ;
-  int originType{0}; // 0->only given, 1-> only estimated, 2-> both
+  int originType{1}; // 0->only given, 1-> only estimated, 2-> both
   double temperature{0.0};
   int xyzColumnStart{-1};
   XyzFileType xyzFileType{XyzFileType::generic};

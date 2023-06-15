@@ -154,7 +154,7 @@ avi::extractInfoLammps(std::string fpath, std::string ftag) {
     }
   }
   infile.close();
-  if (isOrigin == 3) mainInfo.originType = 1;
+  if (isOrigin == 3) mainInfo.originType = 0;
   extraInfo.isPkaGiven = (xyzrec >= 3) ? true : false;
   if (mainInfo.latticeConst < 0.0) {
     return std::make_tuple(mainInfo, extraInfo, false);
