@@ -179,6 +179,8 @@ getAtomsTime(avi::InputInfo &info, avi::ExtraInfo &extraInfo,
   std::vector<double> ec;
   avi::lineStatus ls;
   std::get<0>(res) = avi::xyzFileStatus::eof;
+  //std::cout<<"xyzColumn start " << info.xyzColumnStart << '\n';
+  //std::cout<<"extraColumn start " << info.extraColumnStart << '\n';
   while (std::getline(infile, line)) {
     std::tie(ls, c, ec) = avi::getCoord(line, fs, info, extraInfo);
     // TODO: add ec to props
@@ -197,6 +199,7 @@ getAtomsTime(avi::InputInfo &info, avi::ExtraInfo &extraInfo,
           break;
         }
         if (!atoms.empty()) {
+          //std::cout << "Atoms before clearing: " << atoms[0][0] << ", " << atoms[0][1] << ", " << atoms[0][2] << '\n';
           avi::Logger::inst().log_warning(info.xyzFilePath + ", " + extraInfo.infile + ": " + " Multiple frames in file. Reading last one.");
         }
         atoms.clear();
@@ -207,6 +210,7 @@ getAtomsTime(avi::InputInfo &info, avi::ExtraInfo &extraInfo,
   }
   //std::cout <<"atoms here: " << atoms.size() << '\n';
   if (atoms.empty()) return res;
+  //std::cout <<"first atom: " << atoms[0][0] << ", " << atoms[0][1] << ", " << atoms[0][2] << '\n';
   // assuming bcc /fcc structure and perfect initial. TODO: for imperfect skip
   if (info.structure[0] == 'b') info.ncell = std::round(std::cbrt(atoms.size() / 2.0));
   else if (info.structure[0] == 'f') info.ncell = std::round(std::cbrt(atoms.size() / 4.0));
@@ -218,6 +222,8 @@ getAtomsTime(avi::InputInfo &info, avi::ExtraInfo &extraInfo,
     info.latticeConst = secLatConst;
     secLatConst = -1.0;
   }
+  //std::cout << "lat const: " << info.latticeConst << '\n';
+  //std::cout << "origin type : " << info.originType << '\n';
   std::vector<std::tuple<avi::Coords, double, std::string, int>> combos;
   if (info.originType > 0) {
     auto originEstimated = avi::estimateOrigin(atoms, info.latticeConst);
@@ -289,7 +295,7 @@ getAtomsTime(avi::InputInfo &info, avi::ExtraInfo &extraInfo,
   std::get<1>(res).reserve(atoms.size());
   auto origin = avi::Coords{{info.originX, info.originY, info.originZ}};
   auto obj = avi::AddOffset{info.latticeConst, info.structure, origin};
-  // std::cout << "latInfo: " << info.latticeConst << ", " << info.structure << ", " << origin[0] << '\n';
+  //std::cout << "latInfo: " << info.latticeConst << ", " << info.structure << ", " << origin[0] << ", " << origin[1] << ", " << origin[2] << '\n';
   std::transform(begin(atoms), end(atoms), std::back_inserter(std::get<1>(res)), obj);
   //std::cout << "\natoms1: " << atoms[0][0] << " | " << atoms[atoms.size() - 1][0] << '\n';
   //std::cout << "\natoms res: " << std::get<3>(std::get<1>(res)[0]) << " | " << std::get<3>(std::get<1>(res)[1]) << "\n";
@@ -307,7 +313,7 @@ avi::xyz2defectsTime(avi::InputInfo &mainInfo,
     infile.seekg(0);
     auto temp = mainInfo.xyzFileType;
     mainInfo.xyzFileType = avi::XyzFileType::generic;
-    mainInfo.xyzColumnStart = 0;
+    if (mainInfo.xyzColumnStart < 0) mainInfo.xyzColumnStart = 0;
     atoms = getAtomsTime(mainInfo, extraInfo, config, infile, fs);
     if (!std::get<1>(atoms).empty()) {
       Logger::inst().log_warning(extraInfo.infile +": " + mainInfo.xyzFilePath + ": Default file format " + strSimulationCodeD(temp) + " is not correct. Fallback to generic reading works.");
