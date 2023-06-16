@@ -129,7 +129,8 @@ def filterRingGroupsByTriads(attrs, curIndices, latticeConst):
         angleMask = distMask & ((angleRow > 50))
         resultMat[r_idx, :] = angleMask
     resultMat = resultMat | resultMat.T
-    G = nx.from_numpy_matrix(resultMat)
+    #G = nx.from_numpy_matrix(resultMat)
+    G = nx.Graph(resultMat)
     cycles = nx.minimum_cycle_basis(G)
     return cycles
  
