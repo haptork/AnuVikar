@@ -228,20 +228,20 @@ avi::getCoordLammps(const std::string &line,
     }
   }
   auto maxTry = columnStart > 0 ? 3 : avi::maxColumnsTry;  // if column start is given then three index after that are coordinates else try max
-  auto curColumn = 0;
+  auto coordColumn = 0;
   for (auto i = 0; i < maxTry && first < second; ++i) {
     try {
       auto curVal = std::stod(std::string{first, second});
-      if (curColumn > 2) {
+      if (coordColumn > 2) {
         c[0] = c[1]; c[1] = c[2]; c[2] = curVal; 
       } else {
-        c[curColumn] = curVal;
+        c[coordColumn] = curVal;
       }
-      curColumn++;
+      coordColumn++;
     } catch (const std::invalid_argument &) {
-      curColumn = 0;
+      coordColumn = 0;
     } catch (const std::out_of_range &) {
-      curColumn = 0;
+      coordColumn = 0;
     }
     first = std::find_if(second, end(line),
                          [](int ch) { return !std::isspace(ch); });
@@ -249,7 +249,7 @@ avi::getCoordLammps(const std::string &line,
         std::find_if(first, end(line), [](int ch) { return std::isspace(ch); });
     curC++;
   }
-  if (curColumn <= 2) return std::make_tuple(avi::lineStatus::garbage, c, ec);
+  if (coordColumn <= 2) return std::make_tuple(avi::lineStatus::garbage, c, ec);
   for (; curC <= ecEnd; curC++) {
     if (ecStart <= curC) {
       try {
@@ -265,7 +265,7 @@ avi::getCoordLammps(const std::string &line,
                          [](int ch) { return !std::isspace(ch); });
     second =
         std::find_if(first, end(line), [](int ch) { return std::isspace(ch); });
-    if (first >= second) {
+    if (first >= second && curC < ecEnd) {
       return std::make_tuple(avi::lineStatus::garbage, c, ec);
     }
   }
