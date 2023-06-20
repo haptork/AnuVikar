@@ -892,3 +892,126 @@ def getInfoFromMeta(metaInfo, metaFilePath, xyzFilePath):
     info["xyzFilePath"] = xyzFilePath
     info["xyzFileType"] = "CASCADESDBLIKECOLS"
     return info, extraInfo	
+
+def mpiProcessXyzFilesInDirGivenInfo(xyzDir, info, extraInfoOrig, config, idStartIndex=0, onlyProcessTop = 0, prefix=[], suffix=["xyz"], excludePrefix=["init", "."], excludeSuffix=[], outputJsonFilename = ""):
+    """processes cascades from a directory given info objects
+
+    Returns
+    -------
+    a list of processed cascades, each item is a dictionary that corresponds to a cascade with varioush 
+    attibutes such as n_defects (number of defects), maxClusterSize, clusters, 
+    coords (coordinares of defects (x, y, z, isInterstitial, clusterId, isSurviving)). More on the structure of
+    the cascade dictionary can be found in the documentation or can be explored with anuvikar web app.
+
+    Parameters
+    -----------
+    xyzDir: directory path where all the input files and xyz files are
+    info: info obtained from getDefaultInfos and modified (xyzFilePath, infile can be left as default)
+    extraInfoOrig: info obtained from getDefaultInfos (and possibly modified)
+    config : configuration obtained from getDefaultConfig (and possibly modified)
+    idStartIndex (optional): if appending to list that already has cascades then set as cascades 
+                             in the list, this is to ensure id is unique for each cascade in a list,
+                             important only if you view cascades in anuvikar web-app(default: 0)
+    onlyProcessTop (optional): return if number of processed cascades are equal to or more than this value
+    prefix (optional): a list of prefixes for xyz files in the archive, only files that start with one of the prefixes will be included in processing. (default: [])
+    suffix (optional): a list of suffixes for xyz files in the archive, only files that end with one of the suffixes will be included in processing. (default: ["xyz"])
+    excludePrefix (optional): a list of prefixes for non xyz files in the archive, files that start with one of these prefixes will NOT be included in processing. (default: ["init", "."])
+    excludeSuffix (optional): a list of suffixes for non xyz files in the archive, files that end with one of the suffixes will NOT be included in processing. (default: [""])
+    """
+    from mpi4py import MPI
+
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+    size = comm.Get_size()
+    
+    if not(os.path.isdir(xyzDir) and os.path.exists(xyzDir)):
+        return False, "Error in xyz directory path"
+    xyzFiles = _getAllFilesWithPrefixSuffix(
+        xyzDir, prefix, suffix, excludePrefix, excludeSuffix)
+    files_per_process = len(xyzFiles) // size
+    remainder = len(xyzFiles) % size
+    if rank < remainder:
+        start_index = rank * (files_per_process + 1)
+        end_index = start_index + files_per_process + 1
+    else:
+        start_index = rank * files_per_process + remainder
+        end_index = start_index + files_per_process
+    xyzFiles = xyzFiles[start_index:end_index]
+    print("from", rank, ": ", str(len(xyzFiles)) + " xyz files")
+    res = []
+    extraInfo = extraInfoOrig.copy()
+    preId = str(extraInfo['id']) + '-' if len(extraInfo['id']) > 0  else ""
+    print(preId)
+    for i, xyzFile in enumerate(xyzFiles):
+        print("processing " + str(i + 1) + ": " + xyzFile)
+        extraInfo['id'] = preId + str(idStartIndex + i + 1)
+        info["xyzFilePath"] = xyzFile
+        extraInfo["infile"] = xyzFile
+        isSuccess, curRes = processXyzFileGivenInfo(info, extraInfo, config)
+        if (isSuccess):
+            res.append(curRes)
+        else:
+            print(curRes)
+        if onlyProcessTop > 0 and len(res) >= onlyProcessTop:
+            break
+    allRes = comm.gather(res, root=0)
+    if rank == 0 and outputJsonFilename != "":
+        print("Writing results to ", outputJsonFilename)
+        with open(outputJsonFilename, 'w') as f:
+            json.dump(allRes, f)
+    return True, allRes
+
+
+def ippProcessXyzFilesInDirGivenInfo(xyzDir, info, extraInfoOrig, config, view, idStartIndex=0, onlyProcessTop = 0, prefix=[], suffix=["xyz"], excludePrefix=["init", "."], excludeSuffix=[], outputJsonFilename = ""):
+    """processes cascades from a directory given info objects
+
+    Returns
+    -------
+    a list of processed cascades, each item is a dictionary that corresponds to a cascade with varioush 
+    attibutes such as n_defects (number of defects), maxClusterSize, clusters, 
+    coords (coordinares of defects (x, y, z, isInterstitial, clusterId, isSurviving)). More on the structure of
+    the cascade dictionary can be found in the documentation or can be explored with anuvikar web app.
+
+    Parameters
+    -----------
+    xyzDir: directory path where all the input files and xyz files are
+    info: info obtained from getDefaultInfos and modified (xyzFilePath, infile can be left as default)
+    extraInfoOrig: info obtained from getDefaultInfos (and possibly modified)
+    config : configuration obtained from getDefaultConfig (and possibly modified)
+    idStartIndex (optional): if appending to list that already has cascades then set as cascades 
+                             in the list, this is to ensure id is unique for each cascade in a list,
+                             important only if you view cascades in anuvikar web-app(default: 0)
+    onlyProcessTop (optional): return if number of processed cascades are equal to or more than this value
+    prefix (optional): a list of prefixes for xyz files in the archive, only files that start with one of the prefixes will be included in processing. (default: [])
+    suffix (optional): a list of suffixes for xyz files in the archive, only files that end with one of the suffixes will be included in processing. (default: ["xyz"])
+    excludePrefix (optional): a list of prefixes for non xyz files in the archive, files that start with one of these prefixes will NOT be included in processing. (default: ["init", "."])
+    excludeSuffix (optional): a list of suffixes for non xyz files in the archive, files that end with one of the suffixes will NOT be included in processing. (default: [""])
+    """
+    if not(os.path.isdir(xyzDir) and os.path.exists(xyzDir)):
+        return False, "Error in xyz directory path"
+    xyzFiles = _getAllFilesWithPrefixSuffix(
+        xyzDir, prefix, suffix, excludePrefix, excludeSuffix)
+    print(str(len(xyzFiles)) + " xyz files")
+    res = []
+    extraInfo = extraInfoOrig.copy()
+    preId = str(extraInfo['id']) + '-' if len(extraInfo['id']) > 0  else ""
+    if onlyProcessTop > 0: xyzFiles = xyzFiles[:onlyProcessTop]
+    def processOne(iXyzFile):
+        i = iXyzFile[0]
+        xyzFile = iXyzFile[1]
+        extraInfo['id'] = preId + str(idStartIndex + i + 1)
+        info["xyzFilePath"] = xyzFile
+        extraInfo["infile"] = xyzFile
+        print("processing " + str(i + 1) + ": " + xyzFile)
+        isSuccess, curRes = processXyzFileGivenInfo(info, extraInfo, config)
+        return (isSuccess, curRes)
+    res = view.map_sync(processOne, enumerate(xyzFiles))
+    cascades = []
+    for i, isSuccessCascade in enumerate(res):
+        if isSuccessCascade[0]: cascades.append(isSuccessCascade[1])
+        else: print("error in : ", i, isSuccessCascade[1])
+    if outputJsonFilename != "":
+       print("Writing results to ", outputJsonFilename)
+       with open(outputJsonFilename, 'w') as f:
+           json.dump(cascades, f) 
+    return cascades
