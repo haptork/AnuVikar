@@ -38,7 +38,7 @@ DefectRes atoms2defects(std::tuple<xyzFileStatus, std::vector<offsetCoords>, std
               InputInfo &info, ExtraInfo &extraInfo, const Config &config, bool isBcc);
 
 DefectRes displacedAtoms2defects(std::tuple<xyzFileStatus, dispCoords,
-                                 std::vector<std::vector<double>>> d, double lc);
+                                 std::vector<std::vector<double>>> d, double lc, double box);
 } // namespace avi
 
 #endif // XYZ2DEFECTS_ANUVIKAR_HPP

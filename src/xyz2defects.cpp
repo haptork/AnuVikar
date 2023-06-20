@@ -333,7 +333,7 @@ avi::displaced2defectsTime(avi::InputInfo &mainInfo,
   auto atoms = getDisplacedAtomsTime(mainInfo, extraInfo, config, infile, fs);
   if (std::get<1>(atoms).vacs.empty())
     return std::make_tuple(std::get<0>(atoms), ErrorStatus::noError, avi::DefectVecT{}, std::vector<int>{}, std::vector<std::vector<double>>{});
-  return avi::displacedAtoms2defects(atoms, mainInfo.latticeConst);
+  return avi::displacedAtoms2defects(atoms, mainInfo.latticeConst, mainInfo.boxSize);
 }
 
 /*
@@ -728,7 +728,7 @@ auto cleanDisplaced(avi::DefectVecT &inter, avi::DefectVecT &vac,
 }
 
 avi::DefectRes avi::displacedAtoms2defects(
-    std::tuple<avi::xyzFileStatus, dispCoords, std::vector<std::vector<double>>> statoms, double latticeConst) {
+    std::tuple<avi::xyzFileStatus, dispCoords, std::vector<std::vector<double>>> statoms, double latticeConst, double box) {
   using avi::Coords;
   using std::get;
   using std::tuple;
@@ -761,7 +761,7 @@ avi::DefectRes avi::displacedAtoms2defects(
     auto minDist = maxSqrDist;
     auto minDistIndex = -1;
     for (auto iv = 0; iv < atoms.vacs.size(); iv++) {
-      auto disp = calcDistSqr(atoms.sias[is].first, atoms.vacs[iv]);
+      auto disp = calcDistSqr(atoms.sias[is].first, atoms.vacs[iv], box);
       if (disp < maxSqrDist) siaVacsFull[is].push_back(iv);// = disp;
       if (disp < minDist) {
         minDist = disp;
@@ -810,7 +810,7 @@ avi::DefectRes avi::displacedAtoms2defects(
       auto is = vacSias[iv][j].second;
       for (auto vac : siaVacsFull[is]) {
         if (vac == iv || !vacSias[vac].empty()) continue;
-        auto disp = calcDistSqr(atoms.sias[is].first, atoms.vacs[vac]);
+        auto disp = calcDistSqr(atoms.sias[is].first, atoms.vacs[vac], box);
         vacSias[vac].push_back(std::make_pair(disp, is));
         vacSias[iv][j].second = -1;
       }

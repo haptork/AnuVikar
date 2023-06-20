@@ -126,6 +126,19 @@ static inline double calcDist(avi::Coords a, avi::Coords b) {
   return std::sqrt(calcDistSqr(a, b));
 }
 
+static inline double calcDistSqr(Coords a, Coords b, double box) {
+  double dist = 0.0;
+  for (auto i : {0, 1, 2}) {
+    auto diff = fabs(a[i] - b[i]);
+    if (diff > box/2) {
+      diff = box - diff;
+    }
+    dist += (diff) * (diff);
+  }
+  return dist;
+}
+
+
 
 // write standard array as comma separated values
 template <class T, size_t n>

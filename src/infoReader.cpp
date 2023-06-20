@@ -159,6 +159,9 @@ avi::extractInfoLammps(std::string fpath, std::string ftag) {
   if (mainInfo.latticeConst < 0.0) {
     return std::make_tuple(mainInfo, extraInfo, false);
   }
+  if (mainInfo.ncell > 0) {
+    mainInfo.boxSize = mainInfo.latticeConst * mainInfo.ncell;
+  }
   if (mainInfo.xyzColumnStart == -1 && mainInfo.extraColumnStart > -1) {
     return std::make_tuple(mainInfo, extraInfo, false);
   }
