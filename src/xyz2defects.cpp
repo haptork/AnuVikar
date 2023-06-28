@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <numeric>
 #include <array>
 #include <cmath>
 #include <fstream>
@@ -18,6 +19,7 @@
 #include <xyzReader.hpp>
 
 #include <iostream>
+#include <unordered_set>
 
 // TODO import from printJson
 auto strSimulationCodeD(avi::XyzFileType code) {
@@ -735,6 +737,137 @@ avi::DefectRes avi::displacedAtoms2defects(
   using std::vector;
   bool isExtraCol = (!(std::get<2>(statoms)).empty() && !std::get<2>(statoms)[0].empty());
   bool isIncludeId = isExtraCol;// || info.extraColumnStart == -2;
+  avi::DefectVecT defects;
+  auto &atoms = std::get<1>(statoms);
+  constexpr auto epsilon = 1e-4;
+  const auto nn = (std::sqrt(3) * latticeConst) / 2 + epsilon;
+  const auto threshDist = 0.345 * latticeConst + 1e-4;
+  const auto threshDistSqr = threshDist * threshDist;
+  const auto recombDist = latticeConst*1.5;//latticeConst; //0.345 * latticeConst + 1e-4;
+  const auto recombDistSqr = recombDist * recombDist;
+  const auto vacGroupDist = nn;
+  const auto vacGroupDistSqr = vacGroupDist * vacGroupDist;
+  const auto maxSqrDist = (recombDistSqr > vacGroupDistSqr) ? recombDistSqr : vacGroupDistSqr;
+  std::vector<int> freeIs;
+  const auto sortHelper = [](const std::array<double, 3> &c1, const std::array<double, 3> &c2) {
+    return cmpApprox(c1, c2) < 0;
+  };
+  sort( atoms.vacs.begin(), atoms.vacs.end(), sortHelper);
+  const auto areEq = [](const std::array<double, 3> &c1, const std::array<double, 3> &c2) {
+    return cmpApprox(c1, c2) == 0;
+  };
+  atoms.vacs.erase(unique(atoms.vacs.begin(), atoms.vacs.end(), areEq), atoms.vacs.end());
+  
+  const auto& siaIn = atoms.sias;
+  const auto& vacIn = atoms.vacs;
+  const auto& threshBig = recombDistSqr;
+
+  std::vector<double> distVac2;
+  std::vector<int> vacOcc_;
+  for (const auto& sia : siaIn) {
+      double minDistance = std::numeric_limits<double>::max();
+      int minIndex = -1;
+      for (int i = 0; i < vacIn.size(); ++i) {
+          double distance = calcDistSqr(sia.first, vacIn[i], box);
+          if (distance < minDistance) {
+              minDistance = distance;
+              minIndex = i;
+          }
+      }
+      distVac2.push_back(minDistance);
+      vacOcc_.push_back(minIndex);
+  }
+  // Calculate vacOcc, freeSias, vacOccUnique
+  std::vector<int> vacOcc;
+  std::vector<int> freeSias;
+  std::vector<int> vacOccUnique;
+  std::unordered_set<int> vacOccUniqueSet;
+  for (int i = 0; i < distVac2.size(); ++i) {
+      if (distVac2[i] < threshBig) {
+          vacOcc.push_back(vacOcc[i]);
+          vacOccUniqueSet.insert(vacOcc[i]);
+      } else {
+          freeSias.push_back(i);
+      }
+  }
+  std::vector<int> vac(vacIn.size());
+  std::vector<int> vacRecomb;
+  std::vector<int> indexOfVacRecomb;
+  std::vector<double> vacRecombInverted;
+  std::vector<int> sortOrder(vacRecombInverted.size());
+  std::vector<int> sia(vacRecombInverted.size());
+  //std::vector<int> vacRecombNonUnique(vacRecombInverted.size());
+
+  auto vacEnd = std::copy_if(vacIn.begin(), vacIn.end(), vac.begin(),
+                              [&](const avi::Coords& vacVec) {
+                                  // TODO: fix this
+                                  //int index = &vacVec - vacIn.data();
+                                  return 1;//vacOccUniqueSet.find(index) == vacOccUniqueSet.end();
+                              });
+  vac.resize(std::distance(vac.begin(), vacEnd));
+
+  std::copy_if(vacOccUnique.begin(), vacOccUnique.end(), std::back_inserter(vacRecomb),
+                [&](int index) { return std::count(vacOcc.begin(), vacOcc.end(), index) > 1; });
+
+  std::copy_if(vacOcc.begin(), vacOcc.end(), std::back_inserter(indexOfVacRecomb),
+                [&](int index) { return std::find(vacRecomb.begin(), vacRecomb.end(), index) != vacRecomb.end(); });
+                
+  std::transform(indexOfVacRecomb.begin(), indexOfVacRecomb.end(), std::back_inserter(vacRecombInverted),
+                  [&](int index) { return vacOcc[index]; });  
+
+  std::iota(sortOrder.begin(), sortOrder.end(), 0);
+  std::sort(sortOrder.begin(), sortOrder.end(),
+              [&](int i1, int i2) { return vacRecombInverted[i1] < vacRecombInverted[i2]; });
+
+  std::transform(sortOrder.begin(), sortOrder.end(), sia.begin(),
+                   [&](int i) { return indexOfVacRecomb[i]; });
+
+  //std::transform(sortOrder.begin(), sortOrder.end(), vacRecombNonUnique.begin(),
+                   //[&](int i) { return vacRecombInverted[i]; });
+
+  // TODO: initialize with sizes that are known
+  std::vector<int> latticeSiteGroups;
+  std::vector<std::vector<double>> ids;
+  //latticeSiteGroups.reserve(100);
+  for (int i = 0; i < vacRecomb.size(); i++) {
+      const auto &vc = vacIn[vacRecomb[i]];
+      defects.emplace_back(vc, false, defects.size()+1, false);
+      // TODO: generalize for di-interstitials and more?
+      auto dist1 = calcDistSqr(vc, siaIn[sia[i*2]].first, box);
+      auto dist2 = calcDistSqr(vc, siaIn[sia[i*2+1]].first, box);
+      defects.emplace_back(siaIn[sia[i*2]], false, defects.size()+1, dist1>=dist2);
+      defects.emplace_back(siaIn[sia[i*2+1]], false, defects.size()+1, dist1<dist2);
+      if (isIncludeId) {
+        ids.push_back(std::vector<double>{double(sia[i*2])});
+        ids.push_back(std::vector<double>{double(sia[i*2+1])});
+      }
+      if (isExtraCol) {
+        auto &dst = ids[ids.size()-1];
+        auto &src = std::get<2>(statoms)[ids[ids.size()-1][0]];
+        dst.insert(dst.end(), src.begin(), src.end());
+      }
+      latticeSiteGroups.push_back(defects.size());
+  }
+  for (auto it : freeIs) {
+    defects.emplace_back(atoms.sias[it].first, true, defects.size() + 1, true); // interstitial
+    if (isIncludeId) ids.push_back(std::vector<double>{double(it)});
+    if (isExtraCol) {
+      auto &dst = ids[ids.size()-1];
+      auto &src = std::get<2>(statoms)[ids[ids.size()-1][0]];
+      dst.insert(dst.end(), src.begin(), src.end());
+    }
+  }
+  return std::make_tuple(std::get<0>(statoms), avi::ErrorStatus::noError, std::move(defects), std::move(latticeSiteGroups), ids);
+}
+
+avi::DefectRes displacedAtoms2defectsOld(
+    std::tuple<avi::xyzFileStatus, avi::dispCoords, std::vector<std::vector<double>>> statoms, double latticeConst, double box) {
+  using avi::Coords;
+  using std::get;
+  using std::tuple;
+  using std::vector;
+  bool isExtraCol = (!(std::get<2>(statoms)).empty() && !std::get<2>(statoms)[0].empty());
+  bool isIncludeId = isExtraCol;// || info.extraColumnStart == -2;
   avi::DefectVecT inter, vac, defects;
   auto &atoms = std::get<1>(statoms);
   constexpr auto epsilon = 1e-4;
@@ -761,7 +894,7 @@ avi::DefectRes avi::displacedAtoms2defects(
     auto minDist = maxSqrDist;
     auto minDistIndex = -1;
     for (auto iv = 0; iv < atoms.vacs.size(); iv++) {
-      auto disp = calcDistSqr(atoms.sias[is].first, atoms.vacs[iv], box);
+      auto disp = avi::calcDistSqr(atoms.sias[is].first, atoms.vacs[iv], box);
       if (disp < maxSqrDist) siaVacsFull[is].push_back(iv);// = disp;
       if (disp < minDist) {
         minDist = disp;
@@ -810,7 +943,7 @@ avi::DefectRes avi::displacedAtoms2defects(
       auto is = vacSias[iv][j].second;
       for (auto vac : siaVacsFull[is]) {
         if (vac == iv || !vacSias[vac].empty()) continue;
-        auto disp = calcDistSqr(atoms.sias[is].first, atoms.vacs[vac], box);
+        auto disp = avi::calcDistSqr(atoms.sias[is].first, atoms.vacs[vac], box);
         vacSias[vac].push_back(std::make_pair(disp, is));
         vacSias[iv][j].second = -1;
       }
