@@ -13,6 +13,9 @@ SCENARIO("The user only needs to give xyz file for all the atoms or displaced "
          "separateDirAndFile, separateFileAndExt",
          "[reader]") {
   SECTION("Normal cases - files that don't exist.") {
+
+    REQUIRE(getInfileFromXyzfile("yellow.xyz") == std::make_pair(""s, "yellow.xyz"s));
+
     REQUIRE(getInfileFromXyzfile("yellow.xyz") ==
             std::make_pair(""s, "yellow.xyz"s));
     REQUIRE(getInfileFromXyzfile("path/to/yellow.xyz") ==

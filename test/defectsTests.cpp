@@ -1051,7 +1051,7 @@ SCENARIO("Given xyz coordinates of all the displaced atoms, output only the "
       auto fsDisplaced = std::make_tuple(fs, dispC, ec);
       auto latticeConst = 3.165;
       auto ungroupedDefectsDumbbellPair =
-          displacedAtoms2defects(fsDisplaced, latticeConst);
+          displacedAtoms2defects(fsDisplaced, latticeConst, 400.0);
       auto ungroupedDefects = std::get<2>(ungroupedDefectsDumbbellPair);
       REQUIRE(ungroupedDefects.size() == 13 * 2);
       int nDefects;
