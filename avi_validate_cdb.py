@@ -22,22 +22,7 @@ pathToAnuvikar = "."
 sys.path.append(pathToAnuvikar)
 from pysrc.anuvikar_cdb_helper import getDefaultConfig, writeResultsToJSON
 buildDirs = []
-buildDirs.append(os.path.join(pathToAnuvikar, "_build"))
-buildDirs.append(os.path.join(pathToAnuvikar, "build"))
 libPaths = []
-libPaths.append(os.path.join(buildDirs[0], "libanuvikar_shared.so"))
-libPaths.append(os.path.join(buildDirs[0], "libanuvikar_shared.dylib"))
-libPaths.append(os.path.join(buildDirs[1], "libanuvikar_shared.so"))
-libPaths.append(os.path.join(buildDirs[1], "libanuvikar_shared.dylib"))
-libPath = ''
-for _libPath in libPaths:
-  if (os.path.exists(_libPath)):
-    libPath = _libPath
-if libPath == '':
-  print("Library not found at", libPath)
-  print("This might be due to build errors in cmake.")
-  print("If built successfully, edit this source and correct build directory & lib file (so / dylib / dll) path.")
-  exit(1)
 
 from pysrc.anuvikar_cdb_helper import processXyzFilesInDirGivenMetaFile, _unzipFile
 from pysrc.anuvikar_ml import validateForCdb
@@ -418,6 +403,21 @@ if __name__ == "__main__":
     #overwriteJson = True
     overwriteJson = False
     overwriteDb = True
+    buildDirs.append(os.path.join(pathToAnuvikar, "_build"))
+    buildDirs.append(os.path.join(pathToAnuvikar, "build"))
+    libPaths.append(os.path.join(buildDirs[0], "libanuvikar_shared.so"))
+    libPaths.append(os.path.join(buildDirs[0], "libanuvikar_shared.dylib"))
+    libPaths.append(os.path.join(buildDirs[1], "libanuvikar_shared.so"))
+    libPaths.append(os.path.join(buildDirs[1], "libanuvikar_shared.dylib"))
+    libPath = ''
+    for _libPath in libPaths:
+      if (os.path.exists(_libPath)):
+        libPath = _libPath
+    if libPath == '':
+      print("Library not found at", libPath)
+      print("This might be due to build errors in cmake.")
+      print("If built successfully, edit this source and correct build directory & lib file (so / dylib / dll) path.")
+      exit(1)
     #overwriteJson = (sys.argv[3] == "1")
     #overwriteDb = (sys.argv[4] == "1")
     metaFiles = [x for x in sys.argv[3:]]

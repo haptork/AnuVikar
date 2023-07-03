@@ -28,27 +28,6 @@ from sklearn.neighbors import NearestNeighbors
 import umap
 import logging
 
-pathToAnuvikar = "."
-sys.path.append(pathToAnuvikar)
-from pysrc.anuvikar_cdb_helper import getDefaultConfig, writeResultsToJSON
-buildDirs = []
-buildDirs.append(os.path.join(pathToAnuvikar, "_build"))
-buildDirs.append(os.path.join(pathToAnuvikar, "build"))
-libPaths = []
-libPaths.append(os.path.join(buildDirs[0], "libanuvikar_shared.so"))
-libPaths.append(os.path.join(buildDirs[0], "libanuvikar_shared.dylib"))
-libPaths.append(os.path.join(buildDirs[1], "libanuvikar_shared.so"))
-libPaths.append(os.path.join(buildDirs[1], "libanuvikar_shared.dylib"))
-libPath = ''
-for _libPath in libPaths:
-  if (os.path.exists(_libPath)):
-    libPath = _libPath
-if libPath == '':
-  print("Library not found at", libPath)
-  print("This might be due to build errors in cmake.")
-  print("If built successfully, edit this source and correct build directory & lib file (so / dylib / dll) path.")
-  exit(1)
-
 def dist(a, b):
     res = 0.0
     for x, y in zip(a, b):
