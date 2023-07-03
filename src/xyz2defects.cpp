@@ -132,13 +132,17 @@ getDisplacedAtomsTime(avi::InputInfo &info, avi::ExtraInfo &extraInfo,
   auto latConst = info.latticeConst;
   auto obj = avi::AddOffset{latConst, info.structure, origin};
   auto fn = [&latConst] (double x) { return x * latConst; };
+  auto latticizer = false; // TODO: make it configurable
   std::get<0>(res) = avi::xyzFileStatus::eof;
   while (std::getline(infile, line)) {
     std::tie(ls, c, ec) = avi::getCoordDisplaced(line, info.extraColumnStart, info.extraColumnEnd);
     if (ls == avi::lineStatus::coords &&
         fs == avi::frameStatus::inFrame) {
-      auto vacC = std::get<0>(obj(c[0]));
-      std::transform(begin(vacC), end(vacC), begin(vacC), fn);
+      auto vacC = c[0];
+      if (latticizer) {
+        vacC = std::get<0>(obj(c[0]));
+        std::transform(begin(vacC), end(vacC), begin(vacC), fn);
+      }
       atoms.vacs.emplace_back(std::move(vacC));
       atoms.sias.emplace_back(std::make_pair(c[1], atoms.sias.size()));
       if(!ec.empty())  get<2>(res).emplace_back(ec);
@@ -747,6 +751,11 @@ avi::DefectRes avi::displacedAtoms2defects(
   const auto recombDist = latticeConst*1.5;//latticeConst; //0.345 * latticeConst + 1e-4;
   const auto recombDistSqr = recombDist * recombDist;
   std::vector<int> freeIs;
+  // TODO: make it configurable for now
+  // TODO: add threshold based defects (configurable as before)
+  // TODO: use threshold parameters 0.345 from config
+  // TODO: fix more than 2 in *2
+  /*
   const auto sortHelper = [](const std::array<double, 3> &c1, const std::array<double, 3> &c2) {
     return cmpApprox(c1, c2) < 0;
   };
@@ -755,7 +764,7 @@ avi::DefectRes avi::displacedAtoms2defects(
     return cmpApprox(c1, c2) == 0;
   };
   atoms.vacs.erase(unique(atoms.vacs.begin(), atoms.vacs.end(), areEq), atoms.vacs.end());
-  
+  */
   const auto& siaIn = atoms.sias;
   const auto& vacIn = atoms.vacs;
   const auto& threshBig = recombDistSqr;
@@ -802,16 +811,17 @@ avi::DefectRes avi::displacedAtoms2defects(
 
   std::copy_if(vacOccUniqueSet.begin(), vacOccUniqueSet.end(), std::back_inserter(vacRecomb),
                 [&](int index) { return std::count(vacOcc.begin(), vacOcc.end(), index) > 1; });
+  
+  std::sort(begin(vacRecomb), end(vacRecomb));
 
   indexOfVacRecomb.reserve(vacRecomb.size());
-
-  std::copy_if(vacOcc.begin(), vacOcc.end(), std::back_inserter(indexOfVacRecomb),
-                [&](int index) { return std::find(vacRecomb.begin(), vacRecomb.end(), index) != vacRecomb.end(); });
-                
-  vacRecombInverted.reserve(indexOfVacRecomb.size());
-
-  std::transform(indexOfVacRecomb.begin(), indexOfVacRecomb.end(), std::back_inserter(vacRecombInverted),
-                  [&](int index) { return vacOcc[index]; });  
+  vacRecombInverted.reserve(vacRecomb.size());
+  for (int i = 0; i < vacOcc_.size(); ++i) {
+    if (std::find(vacRecomb.begin(), vacRecomb.end(), vacOcc_[i]) != vacRecomb.end()) {
+        indexOfVacRecomb.push_back(i);
+        vacRecombInverted.push_back(vacOcc_[i]);
+    }
+  }
 
   std::vector<int> sortOrder(indexOfVacRecomb.size());
   std::iota(sortOrder.begin(), sortOrder.end(), 0);
@@ -836,7 +846,7 @@ avi::DefectRes avi::displacedAtoms2defects(
       defects.emplace_back(vc, false, defects.size()+1, false);
       auto maxDist = avi::calcDistSqr(vc, siaIn[sia[i*2]].first, box);
       auto maxIndex = 0;
-      for (int j = 1; vacRecombNonUnique[i*2] == vacRecombNonUnique[i*2+j]; j++) {
+      for (int j = 1; vacRecombNonUnique[i*2] == vacRecombNonUnique[i*2+j]; j++) { // TODO: fix *2 for more than two cases
         auto dist2 = avi::calcDistSqr(vc, siaIn[sia[i*2+j]].first, box);
         if (dist2 > maxDist) {
           maxDist = dist2;
@@ -844,7 +854,7 @@ avi::DefectRes avi::displacedAtoms2defects(
         }
       }
       for (int j = 0; vacRecombNonUnique[i*2] == vacRecombNonUnique[i*2+j]; j++) {
-        defects.emplace_back(siaIn[sia[i*2+j]].first, false, defects.size()+1, maxIndex==j);
+        defects.emplace_back(siaIn[sia[i*2+j]].first, true, defects.size()+1, maxIndex==j);
         if (isIncludeId) ids.push_back(std::vector<double>{double(sia[i*2+j])});
       }
       if (isExtraCol) {
@@ -865,7 +875,7 @@ avi::DefectRes avi::displacedAtoms2defects(
   }
   std::for_each(vac.begin(), vac.end(), 
                   [&](int index) { 
-                    defects.emplace_back(vacIn[index], true, defects.size() + 1, true); // vacancy
+                    defects.emplace_back(vacIn[index], false, defects.size() + 1, true); // vacancy
                   });  
   return std::make_tuple(std::get<0>(statoms), avi::ErrorStatus::noError, std::move(defects), std::move(latticeSiteGroups), ids);
 }
