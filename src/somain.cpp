@@ -10,6 +10,7 @@
 #include <printJson.hpp>
 #include <reader.hpp>
 #include <results.hpp>
+#include <infoReader.hpp>
 
 struct InfoPyInput {
   int ncell;
@@ -23,6 +24,9 @@ struct InfoPyInput {
   int xyzColumnStart;
   int extraColumnStart;
   int extraColumnEnd;
+  int frameStart{-1};
+  int frameEnd{-1};
+  int framePeriod{1};
   const char *xyzFileType;
   const char *xyzFilePath;
   const char *structure;
@@ -48,7 +52,6 @@ struct InfoPyExtraInput {
 };
 
 struct PyConfig {
-  bool allFrames{false};
   bool onlyDefects{false};
   bool isFindDistribAroundPKA{true};
   bool isFindClusterFeatures{true};
@@ -56,6 +59,7 @@ struct PyConfig {
   bool isIgnoreBoundaryDefects{false};
   bool isAddThresholdDefects{true};
   bool safeRunChecks{true};
+  int allFrames{0};
   double thresholdFactor{0.345};
   double extraDefectsSafetyFactor{50.0};
   int logMode{avi::LogMode::warning | avi::LogMode::error};
@@ -152,6 +156,7 @@ extern "C" char *pyProcessFile(InfoPyInput pyInfo, InfoPyExtraInput pyExtraInfo,
   auto res = avi::resultsT{};
   auto lastErr = avi::ErrorStatus::noError;
   auto success = 0;
+  if (config.allFrames) outfile << "[";
   if (!isSuccess) {
     res.err = avi::ErrorStatus::unknownSimulator;
   } else {
@@ -186,6 +191,7 @@ extern "C" char *pyProcessFile(InfoPyInput pyInfo, InfoPyExtraInput pyExtraInfo,
     res.err = lastErr;
     avi::printJson(outfile, info, extraInfo, res);
   }
+  if (config.allFrames) outfile << "]";
   std::string str = outfile.str();
   char *writable = (char *)malloc(sizeof(char) * (str.size() + 1));
   std::copy(str.begin(), str.end(), writable);
@@ -203,8 +209,8 @@ extern "C" char *pyProcessFileWoInfo(char *xyzfile, PyConfig pyConfig) {
   std::stringstream outfile;
   avi::InputInfo info;
   avi::ExtraInfo extraInfo;
-  bool isInfo;
-  auto res = avi::processFileTimeCmd(xyzfileStr, outfile, config, 0, info, extraInfo, isInfo);
+  avi::infoFrom infoStatus = avi::infoFrom::file;
+  auto res = avi::processFileTimeCmd(xyzfileStr, outfile, config, 0, info, extraInfo, infoStatus);
   Logger::inst().log_info("Finished Processing");
   std::string str = outfile.str();
   char *writable = (char *)malloc(

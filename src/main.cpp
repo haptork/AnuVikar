@@ -13,6 +13,9 @@
 #include <reader.hpp>
 #include <infoReader.hpp>
 
+/*
+Reads command line arguments using clipp
+*/
 auto getConfig(int argc, char *argv[]) {
   using clipp::option;
   using clipp::value;
@@ -22,10 +25,7 @@ auto getConfig(int argc, char *argv[]) {
   auto help = false;
   std::string name;
   auto cli =
-      (option("-st")
-           .set(config.allFrames, true)
-           .doc("Switch: Process all the time-steps in a file. (default is last frame only)"),
-      option("-sm")
+      (option("-sm")
            .set(config.onlyDefects, true)
            .doc("Switch: Compute minimum info: only the defect coordinates"),
        option("-sf")
@@ -48,6 +48,9 @@ auto getConfig(int argc, char *argv[]) {
            .set(config.safeRunChecks, false)
            .doc("Switch: Do not check and ignore files with anomalous number "
                 "or proportion of defects."),
+       option("-pf") &
+           value("frames", config.allFrames)
+           .doc("Switch: If multiple frames to be processed, total no. of frames. (default is 0 i.e. last frame only)"),
        option("-pt") &
            value("threshold", config.thresholdFactor)
                .doc("param (default 0.345): threshold factor for threshold "
@@ -96,15 +99,20 @@ auto getConfig(int argc, char *argv[]) {
   return std::make_tuple(config, files, false);
 }
 
+/*
+Cmd-line args are parsed to get config. Each xyz file is processed and 
+results are appended to the output file.
+*/
 int main(int argc, char *argv[]) {
-  using avi::Logger;
-  // Logger::inst().mode(avi::LogMode::warning | avi::LogMode::error);
+  using avi::Logger; // Logger::inst().mode(avi::LogMode::warning | avi::LogMode::error);
   avi::Config config;
   std::vector<std::string> files;
   bool isConfigParse;
+  // parsing cmd-line arguments to get config parameters
   std::tie(config, files, isConfigParse) =
       getConfig(argc, argv); // TODO: cook it using cmd-line flags
   if (!isConfigParse) return 1;
+  // Using config for log and output-file
   Logger::inst().mode(config.logMode);
   Logger::inst().file(config.logFilePath);
   const std::string outpath{config.outputJSONFilePath};
@@ -125,17 +133,13 @@ int main(int argc, char *argv[]) {
   int curIndex = 0;
   avi::InputInfo info;
   avi::ExtraInfo extraInfo;
-  auto isInfo = false;
+  auto infoStatus = avi::infoFrom::stdinOrFile;
   for (const auto &file : files) {
     std::cout << "\rCurrently processing file " << curIndex + 1 << std::flush;
     Logger::inst().log_info("Started processing file \"" + file + "\"");
     avi::ErrorStatus ret;
     int curSuccess = 0;
-    std::tie(ret, curSuccess) = processFileTimeCmd(file, outfile, config, success, info, extraInfo, isInfo);
-    if (avi::ErrorStatus::inputFileMissing == ret) {
-      std::tie(info, extraInfo, isInfo) = avi::infoFromStdIn();
-      std::tie(ret, curSuccess) = processFileTimeCmd(file, outfile, config, success, info, extraInfo, isInfo);
-    }
+    std::tie(ret, curSuccess) = processFileTimeCmd(file, outfile, config, success, info, extraInfo, infoStatus);
     if (avi::ErrorStatus::noError != ret) {
       std::cerr << "\nError in processing file " << file << '\n';
       std::cerr << errToStr(ret) << '\n';

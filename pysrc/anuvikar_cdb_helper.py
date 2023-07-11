@@ -104,6 +104,9 @@ class _InputInfoCpp(Structure):
                 ("xyzColumnStart", c_int),
                 ("extraColumnStart", c_int),
                 ("extraColumnEnd", c_int),
+                ("frameStart", c_int),
+                ("frameEnd", c_int),
+                ("framePeriod", c_int),
                 ("xyzFileType", c_char_p),
                 ("xyzFilePath", c_char_p),
                 ("structure", c_char_p)
@@ -130,14 +133,14 @@ class _ExtraInfoCpp(Structure):
 
 
 class _ConfigCpp(Structure):
-    _fields_ = [("allFrames", c_bool),
-                ("onlyDefects", c_bool),
+    _fields_ = [("onlyDefects", c_bool),
                 ("isFindDistribAroundPKA", c_bool),
                 ("isFindClusterFeatures", c_bool),
                 ("filterZeroSizeClusters", c_bool),
                 ("isIgnoreBoundaryDefects", c_bool),
                 ("isAddThresholdInterstitials", c_bool),
                 ("safeRunChecks", c_bool),
+                ("allFrames", c_int),
                 ("thresholdFactor", c_double),
                 ("extraDefectsSafetyFactor", c_double),
                 ("logMode", c_int),
@@ -241,6 +244,12 @@ def _sanitizeCppRes(res):
     res = res.decode().replace('\n', '')
     return json.loads(res)
 
+def _giveId(res, id):
+    if type(res) == dict: res['id'] = id
+    if type(res) == list: 
+        for cascade in res:
+            cascade['id'] = id
+            id += 1
 
 def _validateMetaInfo(metaInfo):
     if metaInfo['has_surface'] == 'false' and metaInfo['initially_perfect'] == 'true' and (metaInfo['material']['structure'] == 'bcc' or metaInfo['material']['structure'] == 'fcc'):
@@ -306,7 +315,6 @@ def getDefaultConfig(*logModes):
     config = {
         "version": 0.4,
         "anuvikarLib": "./_build/libanuvikar_shared.so",
-        "allFrames": False,
         "onlyDefects": False,
         "isFindDistribAroundPKA": True,
         "isFindClusterFeatures": True,
@@ -314,6 +322,7 @@ def getDefaultConfig(*logModes):
         "isIgnoreBoundaryDefects": True,
         "isAddThresholdInterstitials": True,
         "safeRunChecks": True,
+        "allFrames": 0,
         "thresholdFactor": 0.345,
         "extraDefectsSafetyFactor": 60.0,
         "logMode": 6,
@@ -387,7 +396,7 @@ def processXyzFileGivenInfo(info, extraInfo, config):
     finally:
       lib.dalloc.argtypes = [c_void_p]
       lib.dalloc(res)
-    if len(resStr['error']) > 0: return False, resStr['error']
+    if type(resStr) == dict and len(resStr['error']) > 0: return False, resStr['error']
     return isSuccess, resStr
 
 
@@ -434,7 +443,8 @@ def processXyzFilesInDirGivenInfo(xyzDir, info, extraInfoOrig, config, idStartIn
         extraInfo["infile"] = xyzFile
         isSuccess, curRes = processXyzFileGivenInfo(info, extraInfo, config)
         if (isSuccess):
-            res.append(curRes)
+            if type(curRes) == dict: res.append(curRes)
+            elif type(curRes) == list: res += curRes
         else:
             print(curRes)
         if onlyProcessTop > 0 and len(res) >= onlyProcessTop:
@@ -481,6 +491,9 @@ def getDefaultInfos():
         "xyzColumnStart": -1,
         "extraColumnStart": -1,
         "extraColumnEnd": -1,
+        "frameStart": -1,
+        "frameEnd": -1,
+        "framePeriod": 1,
         "xyzFileType": "CASCADESDBLIKECOLS",
         "xyzFilePath": "",
         "structure": "bcc"
@@ -537,7 +550,7 @@ def processXyzFileWithInputFile(xyzFilePath, config, id = 1):
     resDi = _sanitizeCppRes(cast(res, c_char_p).value)
     lib.dalloc.argtypes = [c_void_p]
     lib.dalloc(res)
-    resDi['id'] = id
+    _giveId(resDi, id)
     return True, resDi
 
 
@@ -576,8 +589,9 @@ def processXyzFilesInDirWithInputFiles(xyzDir, config, idStartIndex=0, onlyProce
         print("processing " + str(i + 1) + ": " + xyzFile)
         isSuccess, curRes = processXyzFileWithInputFile(xyzFile, config)
         if (isSuccess):
-            curRes['id'] = idStartIndex + i + 1
-            res.append(curRes)
+            _giveId(curRes, idStartIndex + i + 1)
+            if type(curRes) == dict: res.append(curRes)
+            elif type(curRes) == list: res += curRes
         else:
             print(curRes)
         if onlyProcessTop > 0 and len(res) >= onlyProcessTop: break

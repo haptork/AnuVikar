@@ -36,45 +36,34 @@ auto filterZeroClusters(avi::DefectVecT &defects,
       defects.end());
 }
 
+/*
+* Get infos from input file if input file is given else uses defaultInfo if given.
+* 
+*/
 std::pair<avi::ErrorStatus,int> avi::processFileTimeCmd(std::string xyzfileName,
                                             std::ostream &outfile,
-                                            const avi::Config &config, int id, const avi::InputInfo &defaultInfo, const avi::ExtraInfo &defaultExtraInfo, bool isDefaultInfo) {
-  std::string infileName, tag;
-  std::tie(infileName, tag) = avi::getInfileFromXyzfile(xyzfileName);
-  //if (infileName.empty()) return std::make_pair(avi::ErrorStatus::inputFileMissing, 0);
-  avi::XyzFileType sc {avi::XyzFileType::generic};
-  avi::InputInfo info;
-  avi::ExtraInfo extraInfo;
-  bool isInfo;
-  if (infileName.empty()) {
-    if (!isDefaultInfo) return std::make_pair(avi::ErrorStatus::inputFileMissing, 0);
-    info = defaultInfo;
-    extraInfo = defaultExtraInfo;
-    isInfo = isDefaultInfo;
-    sc = info.xyzFileType;
-  } else {
-    bool status;
-    std::tie(sc, status) = avi::getSimulationCode(infileName);
-    if (!status) return std::make_pair(avi::ErrorStatus::unknownSimulator, 0);
-    std::tie(info, extraInfo, isInfo) =
-      (sc == avi::XyzFileType::parcasWithStdHeader)
-          ? avi::extractInfoParcas(infileName, tag)
-          : avi::extractInfoLammps(infileName, tag);
-    if (isDefaultInfo) Logger::inst().log_info("Found input file " + infileName);
+                                            const avi::Config &config, int id, avi::InputInfo info, avi::ExtraInfo extraInfo, avi::infoFrom infoStatus) {
+  auto es = avi::ErrorStatus::noError;
+  auto isInfo = true;
+  if (infoStatus != avi::infoFrom::cooked) {
+    std::tie(es, info, extraInfo) = cookInfos(xyzfileName, infoStatus);
+    if (es != avi::ErrorStatus::noError) return std::make_pair(es, 0);
   }
-  if (!isInfo) return std::make_pair(avi::ErrorStatus::InputFileincomplete, 0);
-  info.xyzFileType = sc;
-  info.xyzFilePath = xyzfileName;
   avi::frameStatus fs = avi::frameStatus::prelude;
   std::ifstream xyzfile{info.xyzFilePath};
   if (xyzfile.bad() || !xyzfile.is_open()) return std::make_pair(avi::ErrorStatus::xyzFileOpenError, 0);
   auto success = 0;
   auto frameCount = 0;
   while (true) {
-    extraInfo.simulationTime = success + 1;
+    extraInfo.simulationTime = frameCount;
     extraInfo.id = std::to_string(id + success + 1);
+    if (frameCount < info.frameStart || frameCount % info.framePeriod != 0) {
+      auto res = avi::skipFrame(info, extraInfo, xyzfile, fs);
+      frameCount++;
+      if (frameCount >= info.frameEnd || res == avi::xyzFileStatus::eof) break;
+      continue;
+    }
     auto res = avi::processTimeFile(info, extraInfo, config, xyzfile, fs, outfile, success == 0);
-    frameCount++;
     if (res.second != avi::ErrorStatus::noError) {
       if (config.allFrames) std::cerr << "\nError: " << errToStr(res.second) << " in frame " << frameCount << " of file " << xyzfileName << '\n' << std::flush;
       else std::cerr << "\nError: " << errToStr(res.second) << " : file- " << xyzfileName << '\n' << std::flush;
@@ -82,11 +71,12 @@ std::pair<avi::ErrorStatus,int> avi::processFileTimeCmd(std::string xyzfileName,
     } else {
       ++success;
       if (config.allFrames) {
-        if (success >= 2) std::cout << "\r" << success << " steps processed successfully." << std::flush;
+        if (success >= 2) std::cout << "\r" << frameCount << " step processed successfully." << std::flush;
         Logger::inst().log_info("Finished processing" + std::to_string(success) +" frame in file \"" + xyzfileName + "\"");
       }
     }
-    if (res.first == avi::xyzFileStatus::eof) break;
+    frameCount++;
+    if (frameCount >= info.frameEnd || res.first == avi::xyzFileStatus::eof) break;
   }
   xyzfile.close();
 if (success > 0) return std::make_pair(avi::ErrorStatus::noError, success);

@@ -12,6 +12,50 @@
 #include <results.hpp>
 #include <xyz2defects.hpp>
 
+std::tuple<avi::ErrorStatus, avi::InputInfo, avi::ExtraInfo> avi::cookInfos(std::string xyzfileName, avi::infoFrom infoStatus) {
+  std::string infileName, tag;
+  auto es = avi::ErrorStatus::noError;
+  auto info = InputInfo{};
+  auto extraInfo = ExtraInfo{};
+  auto isInfo = true;
+  if (infoStatus == infoFrom::stdinOrFile || infoStatus == infoFrom::file) {
+    std::tie(infileName, tag) = avi::getInfileFromXyzfile(xyzfileName);
+    if (!infileName.empty()) {
+      bool status;
+      avi::XyzFileType sc {avi::XyzFileType::generic};
+      std::tie(sc, status) = avi::getSimulationCode(infileName);
+      if (status) {
+        std::tie(info, extraInfo, isInfo) =
+        (sc == avi::XyzFileType::parcasWithStdHeader)
+            ? avi::extractInfoParcas(infileName, tag)
+            : avi::extractInfoLammps(infileName, tag);
+        if (isInfo) {
+          return std::make_tuple(avi::ErrorStatus::noError, info, extraInfo);
+        } else {
+          es = avi::ErrorStatus::InputFileincomplete;
+        }
+      } else {
+        es = avi::ErrorStatus::unknownSimulator;
+      }
+    } else {
+      es = avi::ErrorStatus::inputFileMissing;
+    }
+  }
+  if (infoStatus == infoFrom::stdinOrFile || infoStatus == infoFrom::stdin) {
+    std::tie(info, extraInfo, isInfo) = avi::infoFromStdIn();
+    if (!isInfo) {
+      if (es == avi::ErrorStatus::noError) {
+        es = avi::ErrorStatus::unknownError;
+      } else {
+        es = avi::ErrorStatus::noError;
+      } 
+    }
+    return std::make_tuple(avi::ErrorStatus::noError, info, extraInfo);
+  }
+  return std::make_tuple(es, info, extraInfo);
+  // if (isDefaultInfo) Logger::inst().log_info("Found input file " + infileName);
+}
+
 std::array<std::string, 2> separateDirAndFile(std::string path) {
   std::size_t dirPos = path.find_last_of("/");
   std::string dir{""};
@@ -137,6 +181,12 @@ avi::extractInfoLammps(std::string fpath, std::string ftag) {
         mainInfo.xyzColumnStart = std::stoi(val);
       } else if (cmd == "structure") {
         mainInfo.structure = val;
+      } else if (cmd == "frameStart") {
+        mainInfo.frameStart = std::stoi(val);
+      } else if (cmd == "frameEnd") {
+        mainInfo.frameEnd = std::stoi(val);
+      } else if (cmd == "framePeriod") {
+        mainInfo.framePeriod = std::stoi(val);
       } else if (cmd == "extraColumn") {
         if (mainInfo.extraColumnStart == -1) { // start only
           mainInfo.extraColumnStart = std::stoi(val);
@@ -163,9 +213,6 @@ avi::extractInfoLammps(std::string fpath, std::string ftag) {
     mainInfo.boxSize = mainInfo.latticeConst * mainInfo.ncell;
   }
   if (mainInfo.xyzColumnStart == -1 && mainInfo.extraColumnStart > -1) {
-    return std::make_tuple(mainInfo, extraInfo, false);
-  }
-  if (mainInfo.structure != "bcc" && mainInfo.structure != "fcc") {
     return std::make_tuple(mainInfo, extraInfo, false);
   }
   extraInfo.infile = fpath;
@@ -248,6 +295,7 @@ int readInt(std::string msg) {
     buffer.clear();
   }
   return res;
+
 }
 
 std::tuple<avi::InputInfo, avi::ExtraInfo, bool> avi::infoFromStdIn() {

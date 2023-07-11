@@ -14,6 +14,8 @@
 
 namespace avi {
 
+enum class infoFrom : int { stdin , file , stdinOrFile, cooked, failed};
+
 std::pair<std::string, std::string> getInfileFromXyzfile(std::string xyzfile);
 
 std::pair<avi::XyzFileType, bool> getSimulationCode(std::string fname);
@@ -25,6 +27,8 @@ std::tuple<avi::InputInfo, avi::ExtraInfo, bool>
 extractInfoLammps(std::string fname, std::string ftag);
 
 std::tuple<avi::InputInfo, avi::ExtraInfo, bool> infoFromStdIn();
+
+std::tuple<avi::ErrorStatus, avi::InputInfo, avi::ExtraInfo> cookInfos(std::string xyzfileName, avi::infoFrom infoStatus);
 
 } // namespace avi
 #endif

@@ -76,7 +76,7 @@ std::string errorStr(avi::ErrorStatus err) {
   if (err == avi::ErrorStatus::inputFileMissing) {
     return "Could not read input file";
   } else if (err == avi::ErrorStatus::InputFileincomplete) {
-    return "Input file doesn't have all the info";
+    return "Input file doesn't have missing/incorrect info";
   } else if (err == avi::ErrorStatus::inputFileReadError) {
     return "Input file read error.";
   } else if (err == avi::ErrorStatus::xyzFileMissing) {

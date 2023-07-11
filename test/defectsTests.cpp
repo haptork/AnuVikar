@@ -1050,10 +1050,22 @@ SCENARIO("Given xyz coordinates of all the displaced atoms, output only the "
       auto fs = avi::xyzFileStatus::reading;
       auto fsDisplaced = std::make_tuple(fs, dispC, ec);
       auto latticeConst = 3.165;
+      Config config;
       auto ungroupedDefectsDumbbellPair =
-          displacedAtoms2defects(fsDisplaced, latticeConst, 400.0);
+          displacedAtoms2defects(fsDisplaced, latticeConst, 400.0, config);
       auto ungroupedDefects = std::get<2>(ungroupedDefectsDumbbellPair);
-      REQUIRE(ungroupedDefects.size() == 13 * 2);
+        auto printDefects = [](const avi::DefectVecT &d) {
+    size_t count = 0;
+    for (const auto &x : d) {
+      std::cout << "[" << std::get<0>(x)[0] << ", " << std::get<0>(x)[1] << ", "
+              << std::get<0>(x)[2] << ", " << std::get<1>(x) << ", "
+              << std::get<2>(x) << ", " << std::get<3>(x) << "]";
+      if (count++ < (d.size() - 1)) std::cout << ", ";
+    }
+  };
+  //printDefects(ungroupedDefects);
+
+      CHECK(ungroupedDefects.size() == 13 * 2);
       int nDefects;
       double inClusterFractionI, inClusterFractionV;
       std::tie(nDefects, inClusterFractionI, inClusterFractionV) =
@@ -1104,27 +1116,27 @@ SCENARIO("Given xyz coordinates of all the displaced atoms, output only the "
         SECTION("Check ndefects and cluster sizes") {
           std::tie(nDefects, inClusterFractionI, inClusterFractionV) =
               avi::getNDefectsAndClusterFractions(defects);
-          REQUIRE(nDefects == 3);
-          REQUIRE(inClusterFractionI == Approx(100.0));
-          REQUIRE(inClusterFractionV == Approx(100.0));
+          CHECK(nDefects == 3);
+          CHECK(inClusterFractionI == Approx(100.0));
+          CHECK(inClusterFractionV == Approx(100.0));
           ignoreSmallClusters(defects, clusterSizeMap);
           std::tie(nDefects, inClusterFractionI, inClusterFractionV) =
               avi::getNDefectsAndClusterFractions(defects);
-          REQUIRE(inClusterFractionI == Approx(100.0));
-          REQUIRE(inClusterFractionV == Approx(0.0));
+          CHECK(inClusterFractionI == Approx(100.0));
+          CHECK(inClusterFractionV == Approx(0.0));
           auto clusterIdMap = avi::clusterMapping(defects);
-          REQUIRE(clusterIdMap.size() == 1); // 1 interstitial cluster ring
+          CHECK(clusterIdMap.size() == 1); // 1 interstitial cluster ring
           auto it = std::begin(clusterIdMap);
-          REQUIRE(it->second.size() == 23);
+          CHECK(it->second.size() == 23);
           auto clusterIVMap =
               avi::clusterIVType(clusterIdMap, clusterSizeMap);
-          REQUIRE(clusterIVMap.size() == 1);
-          REQUIRE(std::abs(std::begin(clusterIVMap)->second) == 3); // surviving
+          CHECK(clusterIVMap.size() == 1);
+          CHECK(std::abs(std::begin(clusterIVMap)->second) == 3); // surviving
           int maxClusterSizeI, maxClusterSizeV;
           std::tie(maxClusterSizeI, maxClusterSizeV) =
               avi::getMaxClusterSizes(clusterSizeMap, clusterIdMap);
-          REQUIRE(maxClusterSizeI == 3);
-          REQUIRE(maxClusterSizeV == 0);
+          CHECK(maxClusterSizeI == 3);
+          CHECK(maxClusterSizeV == 0);
           SECTION("Check cluster features") {
             auto feats = avi::clusterFeatures(
                 defects, clusterIdMap, clusterSizeMap, latticeConst);

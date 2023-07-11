@@ -13,8 +13,10 @@
 #include <cluster2features.hpp>
 #include <helper.hpp>
 #include <results.hpp>
+#include <infoReader.hpp>
 
 namespace avi {
+
 
 std::pair<avi::xyzFileStatus, avi::ErrorStatus> processTimeFile(avi::InputInfo &info,
                                      avi::ExtraInfo &extraInfo,
@@ -22,7 +24,7 @@ std::pair<avi::xyzFileStatus, avi::ErrorStatus> processTimeFile(avi::InputInfo &
 
 std::pair<avi::ErrorStatus,int> processFileTimeCmd(std::string xyzfileName,
                                             std::ostream &outfile,
-                                            const Config &config, int id, const avi::InputInfo&, const avi::ExtraInfo&, bool);
- 
+                                            const Config &config, int id, avi::InputInfo, avi::ExtraInfo, avi::infoFrom);
+
 }
 #endif

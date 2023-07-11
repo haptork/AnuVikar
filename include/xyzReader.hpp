@@ -40,5 +40,8 @@ std::tuple<avi::lineStatus, avi::Coords, std::vector<double>>
 getCoordCdb(const std::string &line, const avi::frameStatus &fs,
              const std::string &substrate, int columnStart, int ecStart, int ecEnd);
 
+avi::xyzFileStatus skipFrameAtoms(avi::InputInfo &info, avi::ExtraInfo &extraInfo, std::istream &infile, avi::frameStatus fs);
+avi::xyzFileStatus skipFrameDisplaced(avi::InputInfo &info, avi::ExtraInfo &extraInfo, std::istream &infile, avi::frameStatus fs);
+
 } // namespace avi
 #endif

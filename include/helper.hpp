@@ -74,6 +74,9 @@ struct InputInfo {
   std::string structure{"bcc"};
   int extraColumnStart{-1};
   int extraColumnEnd{-1};
+  int frameStart{0};
+  int frameEnd{0};
+  int framePeriod{1};
   // int latConstType{0}; // 0->only given, 1-> only optimized, 2-> both
 };
 
@@ -97,7 +100,7 @@ struct ExtraInfo {
 };
 
 struct Config {
-  bool allFrames{false};
+  int allFrames{0};
   bool onlyDefects{false};
   bool isFindDistribAroundPKA{true};
   bool isFindClusterFeatures{true};
@@ -130,7 +133,7 @@ static inline double calcDistSqr(Coords a, Coords b, double box) {
   double dist = 0.0;
   for (auto i : {0, 1, 2}) {
     auto diff = fabs(a[i] - b[i]);
-    if (diff > box/2) {
+    if (box > 0 && diff > box/2) {
       diff = box - diff;
     }
     dist += (diff) * (diff);

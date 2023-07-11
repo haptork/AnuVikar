@@ -12,6 +12,64 @@
 #include <helper.hpp>
 #include <xyzReader.hpp>
 
+avi::lineStatus skipCoordDisplaced(const std::string &line) {
+  auto first = std::find_if(begin(line), end(line),
+                            [](int ch) { return !std::isspace(ch); });
+  if (first == std::end(line))
+    return avi::lineStatus::garbage; // possibly blank line
+  auto second =
+      std::find_if(first, end(line), [](int ch) { return std::isspace(ch); });
+  std::string word{first, second};
+  if (word == "ITEM:") {
+    first = std::find_if(second, end(line), [](int ch) { return !std::isspace(ch); });
+    second = std::find_if(first, end(line), [](int ch) { return std::isspace(ch); });
+    word = std::string{first, second};
+    if (word == "ENTRIES") {
+      return avi::lineStatus::frameBorder;
+    }
+  }
+  return avi::lineStatus::garbage;
+}
+
+avi::xyzFileStatus avi::skipFrameDisplaced(avi::InputInfo &info, avi::ExtraInfo &extraInfo, std::istream &infile, avi::frameStatus fs) {
+  using avi::Coords;
+  avi::xyzFileStatus res;
+  std::string line;
+  avi::lineStatus ls;
+  res = avi::xyzFileStatus::eof;
+  while (std::getline(infile, line)) {
+    ls = skipCoordDisplaced(line);
+    if (ls == avi::lineStatus::frameBorder) {
+      //if (fs != avi::frameStatus::prelude) {
+        fs = avi::frameStatus::inFrame;
+        res = avi::xyzFileStatus::reading;
+      //}
+      break;
+    }
+  }
+  return res;
+}
+
+avi::xyzFileStatus avi::skipFrameAtoms(avi::InputInfo &info, avi::ExtraInfo &extraInfo, std::istream &infile, avi::frameStatus fs) {
+  using avi::Coords;
+  avi::xyzFileStatus res;
+  std::string line;
+  avi::lineStatus ls;
+  res = avi::xyzFileStatus::eof;
+  while (std::getline(infile, line)) {
+    auto x = getCoord(line, fs, info, extraInfo);
+    ls = std::get<0>(x);
+    if (ls == avi::lineStatus::frameBorder) {
+      //if (fs != avi::frameStatus::prelude) {
+        fs = avi::frameStatus::inFrame;
+        res = avi::xyzFileStatus::reading;
+      //}
+      break;
+    }
+  }
+  return res;
+}
+
 std::tuple<avi::lineStatus, avi::Coords, std::vector<double>>
 avi::getCoordGeneric(const std::string &line, const avi::frameStatus &fs, int columnStart, int ecStart, int ecEnd) {
   avi::Coords c;
