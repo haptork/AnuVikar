@@ -63,9 +63,9 @@ struct InputInfo {
   int ncell{-1};
   double boxSize{-1.0};
   double latticeConst{-1.0};
-  double originX;
-  double originY;
-  double originZ;
+  double originX{0.0};
+  double originY{0.0};
+  double originZ{0.0};
   int originType{1}; // 0->only given, 1-> only estimated, 2-> both
   double temperature{0.0};
   int xyzColumnStart{-1};

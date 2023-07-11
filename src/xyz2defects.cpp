@@ -155,7 +155,7 @@ getDisplacedAtomsTime(avi::InputInfo &info, avi::ExtraInfo &extraInfo,
     } else if (ls == avi::lineStatus::frameBorder) {
       if (fs != avi::frameStatus::prelude) {
         fs = avi::frameStatus::inFrame;
-        if (config.allFrames && !atoms.vacs.empty()) {
+        if (config.allFrames) {
           std::get<0>(res) = avi::xyzFileStatus::reading;
           break;
         }
@@ -319,8 +319,9 @@ avi::DefectRes
 avi::xyz2defectsTime(avi::InputInfo &mainInfo,
                       avi::ExtraInfo &extraInfo,
                       const avi::Config &config, std::istream &infile, avi::frameStatus &fs) {
+  auto isFallback = (fs == avi::frameStatus::prelude) && mainInfo.xyzFileType != avi::XyzFileType::generic;
   auto atoms = getAtomsTime(mainInfo, extraInfo, config, infile, fs);
-  if (std::get<1>(atoms).empty() && mainInfo.xyzFileType != avi::XyzFileType::generic) {
+  if (std::get<1>(atoms).empty() && isFallback) {
     infile.clear();
     infile.seekg(0);
     auto temp = mainInfo.xyzFileType;
@@ -329,6 +330,8 @@ avi::xyz2defectsTime(avi::InputInfo &mainInfo,
     atoms = getAtomsTime(mainInfo, extraInfo, config, infile, fs);
     if (!std::get<1>(atoms).empty()) {
       Logger::inst().log_warning(extraInfo.infile +": " + mainInfo.xyzFilePath + ": Default file format " + strSimulationCodeD(temp) + " is not correct. Fallback to generic reading works.");
+    } else {
+      mainInfo.xyzFileType = temp;
     }
   }
   //std::cout << "\natoms: " << atoms.second.size() << '\n';

@@ -30,6 +30,8 @@ std::tuple<avi::ErrorStatus, avi::InputInfo, avi::ExtraInfo> avi::cookInfos(std:
             ? avi::extractInfoParcas(infileName, tag)
             : avi::extractInfoLammps(infileName, tag);
         if (isInfo) {
+          info.xyzFilePath = xyzfileName;
+          info.xyzFileType = sc;
           return std::make_tuple(avi::ErrorStatus::noError, info, extraInfo);
         } else {
           es = avi::ErrorStatus::InputFileincomplete;
