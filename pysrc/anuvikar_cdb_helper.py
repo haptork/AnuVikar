@@ -907,7 +907,7 @@ def getInfoFromMeta(metaInfo, metaFilePath, xyzFilePath):
     info["xyzFileType"] = "CASCADESDBLIKECOLS"
     return info, extraInfo	
 
-def mpiProcessXyzFilesInDirGivenInfo(xyzDir, info, extraInfoOrig, config, idStartIndex=0, onlyProcessTop = 0, prefix=[], suffix=["xyz"], excludePrefix=["init", "."], excludeSuffix=[], outputJsonFilename = ""):
+def mpiProcessXyzFilesInDirGivenInfo(xyzDir, info, extraInfoOrig, config, idStartIndex=0, onlyProcessTop = 0, prefix=[], suffix=["xyz"], excludePrefix=["init", "."], excludeSuffix=[], outFileName = ""):
     """processes cascades from a directory given info objects
 
     Returns
@@ -969,14 +969,14 @@ def mpiProcessXyzFilesInDirGivenInfo(xyzDir, info, extraInfoOrig, config, idStar
         if onlyProcessTop > 0 and len(res) >= onlyProcessTop:
             break
     allRes = comm.gather(res, root=0)
-    if rank == 0 and outputJsonFilename != "":
-        print("Writing results to ", outputJsonFilename)
-        with open(outputJsonFilename, 'w') as f:
+    if rank == 0 and outFileName != "":
+        print("Writing results to ", outFileName)
+        with open(outFileName, 'w') as f:
             json.dump(allRes, f)
     return True, allRes
 
 
-def ippProcessXyzFilesInDirGivenInfo(xyzDir, info, extraInfoOrig, config, view, idStartIndex=0, onlyProcessTop = 0, prefix=[], suffix=["xyz"], excludePrefix=["init", "."], excludeSuffix=[], outputJsonFilename = ""):
+def ippProcessXyzFilesInDirGivenInfo(xyzDir, info, extraInfoOrig, config, view, idStartIndex=0, onlyProcessTop = 0, prefix=[], suffix=["xyz"], excludePrefix=["init", "."], excludeSuffix=[], outFileName = ""):
     """processes cascades from a directory given info objects
 
     Returns
@@ -1024,8 +1024,150 @@ def ippProcessXyzFilesInDirGivenInfo(xyzDir, info, extraInfoOrig, config, view, 
     for i, isSuccessCascade in enumerate(res):
         if isSuccessCascade[0]: cascades.append(isSuccessCascade[1])
         else: print("error in : ", i, isSuccessCascade[1])
-    if outputJsonFilename != "":
-       print("Writing results to ", outputJsonFilename)
-       with open(outputJsonFilename, 'w') as f:
+    if outFileName != "":
+       print("Writing results to ", outFileName)
+       with open(outFileName, 'w') as f:
            json.dump(cascades, f) 
     return cascades
+
+def ippProcessXyzFileFramesGivenInfo(info, extraInfoOrig, config, view, idStartIndex=0, outFileName = "", isGather = 0):
+    """processes cascades from a directory given info objects
+
+    Returns
+    -------
+    a list of processed cascades, each item is a dictionary that corresponds to a cascade with varioush 
+    attibutes such as n_defects (number of defects), maxClusterSize, clusters, 
+    coords (coordinares of defects (x, y, z, isInterstitial, clusterId, isSurviving)). More on the structure of
+    the cascade dictionary can be found in the documentation or can be explored with anuvikar web app.
+
+    Parameters
+    -----------
+    xyzFilePath: file path of the xyz file
+    info: info obtained from getDefaultInfos and modified (xyzFilePath, infile can be left as default)
+    extraInfoOrig: info obtained from getDefaultInfos (and possibly modified)
+    config : configuration obtained from getDefaultConfig (and possibly modified)
+    idStartIndex (optional): if appending to list that already has cascades then set as cascades 
+                             in the list, this is to ensure id is unique for each cascade in a list,
+                             important only if you view cascades in anuvikar web-app(default: 0)
+    onlyProcessTop (optional): return if number of processed cascades are equal to or more than this value
+    """
+    if not(os.path.exists(info['xyzFilePath'])):
+        return False, "Error in xyz file path"
+    totalFrames = config['allFrames']
+    size = len(view.client.ids)
+    framesPerProcess = totalFrames // size
+    remainder = totalFrames % size
+    limits = []
+    for rank in range(size):
+      if rank < remainder:
+          startIndex = rank * (framesPerProcess + 1)
+          endIndex = startIndex + framesPerProcess + 1
+      else:
+          startIndex = rank * framesPerProcess + remainder
+          endIndex = startIndex + framesPerProcess
+      limits.append((rank, startIndex, endIndex))
+    def processOne(rankLimits):
+        rank = rankLimits[0]
+        startI = rankLimits[1]
+        endI = rankLimits[2]
+        info['frameStart'] = startI
+        info['frameEnd'] = endI
+        print("from", rank, ": ", str(startI) + " to " + str(endI))
+        extraInfo = extraInfoOrig.copy()
+        preId = str(extraInfo['id']) + '-' if len(extraInfo['id']) > 0  else ""
+        extraInfo['id'] = preId + str(idStartIndex + startI + 1)
+        return processXyzFileGivenInfo(info, extraInfo, config)
+    res = view.map_sync(processOne, limits)
+    cascades = []
+    for i, isSuccessCascade in enumerate(res):
+        if isSuccessCascade[0]: 
+            if type(isSuccessCascade[1]) == list:
+                cascades += isSuccessCascade[1]
+            else:
+                cascades.append(isSuccessCascade[1])
+        else: print("error in : ", i, isSuccessCascade[1])
+    if outFileName != "":
+       print("Writing results to ", outFileName)
+       with open(outFileName, 'w') as f:
+           json.dump(cascades, f) 
+    return cascades
+
+
+    if (isSuccess):
+        if type(curRes) == list:
+            res = curRes
+        else:
+            res = [curRes]
+    if isGather:
+        allRes = comm.gather(res, root=0)
+    else:
+        allRes = res
+    if outFileName != "" and (not isGather or (isGather and rank == 0)) :
+        print("Writing results to ", outFileName)
+        with open(outFileName, 'w') as f:
+            json.dump(allRes, f)
+    return True, allRes
+
+
+def mpiProcessXyzFileFramesGivenInfo(info, extraInfoOrig, config, idStartIndex=0, outFileName = "", isGather = 0):
+    """processes cascades from a directory given info objects
+
+    Returns
+    -------
+    a list of processed cascades, each item is a dictionary that corresponds to a cascade with varioush 
+    attibutes such as n_defects (number of defects), maxClusterSize, clusters, 
+    coords (coordinares of defects (x, y, z, isInterstitial, clusterId, isSurviving)). More on the structure of
+    the cascade dictionary can be found in the documentation or can be explored with anuvikar web app.
+
+    Parameters
+    -----------
+    xyzFilePath: file path of the xyz file
+    info: info obtained from getDefaultInfos and modified (xyzFilePath, infile can be left as default)
+    extraInfoOrig: info obtained from getDefaultInfos (and possibly modified)
+    config : configuration obtained from getDefaultConfig (and possibly modified)
+    idStartIndex (optional): if appending to list that already has cascades then set as cascades 
+                             in the list, this is to ensure id is unique for each cascade in a list,
+                             important only if you view cascades in anuvikar web-app(default: 0)
+    onlyProcessTop (optional): return if number of processed cascades are equal to or more than this value
+    """
+    from mpi4py import MPI
+
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+    size = comm.Get_size()
+    
+    if not(os.path.exists(info['xyzFilePath'])):
+        return False, "Error in xyz file path"
+    totalFrames = config['allFrames']
+    framesPerProcess = totalFrames // size
+    remainder = totalFrames % size
+    if rank < remainder:
+        startIndex = rank * (framesPerProcess + 1)
+        endIndex = startIndex + framesPerProcess + 1
+    else:
+        startIndex = rank * framesPerProcess + remainder
+        endIndex = startIndex + framesPerProcess
+    info['frameStart'] = startIndex
+    info['frameEnd'] = endIndex
+    print("from", rank, ": ", str(startIndex) + " to " + str(endIndex))
+    res = []
+    extraInfo = extraInfoOrig.copy()
+    preId = str(extraInfo['id']) + '-' if len(extraInfo['id']) > 0  else ""
+    extraInfo['id'] = preId + str(idStartIndex + 1)
+    isSuccess, curRes = processXyzFileGivenInfo(info, extraInfo, config)
+    res = []
+    if (isSuccess):
+        if type(curRes) == list:
+            res = curRes
+        else:
+            res = [curRes]
+    if isGather:
+        allRes = comm.gather(res, root=0)
+    else:
+        allRes = res
+    if outFileName != "" and (not isGather or (isGather and rank == 0)) :
+        print("Writing results to ", outFileName)
+        with open(outFileName, 'w') as f:
+            json.dump(allRes, f)
+    return True, allRes
+

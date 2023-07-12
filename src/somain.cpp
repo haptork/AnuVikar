@@ -11,6 +11,7 @@
 #include <reader.hpp>
 #include <results.hpp>
 #include <infoReader.hpp>
+#include <xyz2defects.hpp>
 
 struct InfoPyInput {
   int ncell;
@@ -103,6 +104,9 @@ auto pyInfoToCppInfo(const InfoPyInput &pyinput,
   } else {
       input.extraColumnEnd = pyinput.extraColumnEnd;
   }
+  input.frameStart = pyinput.frameStart;
+  input.frameEnd = pyinput.frameEnd;
+  input.framePeriod = pyinput.framePeriod;
   input.xyzFilePath = std::string{pyinput.xyzFilePath};
   input.structure = std::string{pyinput.structure};
   std::string simCodeStr = std::string{pyinput.xyzFileType};
@@ -167,22 +171,29 @@ extern "C" char *pyProcessFile(InfoPyInput pyInfo, InfoPyExtraInput pyExtraInfo,
     if (xyzfile.bad() || !xyzfile.is_open()) {
       res.err = avi::ErrorStatus::xyzFileOpenError;
     }
-    auto frameCount = 0;
     auto initId = extraInfo.id;
     auto origSimTime = extraInfo.simulationTime;
+    auto frameCount = 0;
     while (true) {
-      if (config.allFrames && origSimTime == 0) extraInfo.simulationTime = success + 1;
-      if (config.allFrames) extraInfo.id = initId + "_" + std::to_string(success + 1);
+      extraInfo.simulationTime = frameCount + origSimTime;
+      extraInfo.id = initId + "_" + std::to_string(success + 1);
+      if (frameCount < info.frameStart || frameCount % info.framePeriod != 0) {
+        auto res = avi::skipFrame(info, extraInfo, xyzfile, fs);
+        frameCount++;
+        if (info.frameEnd > 0 && frameCount >= info.frameEnd || res == avi::xyzFileStatus::eof) break;
+        continue;
+      }
       auto res = avi::processTimeFile(info, extraInfo, config, xyzfile, fs, outfile, success == 0);
-      frameCount++;
       if (res.second != avi::ErrorStatus::noError) {
-        Logger::inst().log_info("Error processing" + std::to_string(frameCount) +" frame in file \"" + info.xyzFilePath + "\"");
+        Logger::inst().log_info("Error processing frame no." + std::to_string(frameCount) +" in file \"" + info.xyzFilePath + "\"");
         lastErr = res.second;
       } else {
         ++success;
-        if (config.allFrames) Logger::inst().log_info("Finished processing" + std::to_string(success) +" frame in file \"" + info.xyzFilePath + "\"");
+        if (config.allFrames) 
+        Logger::inst().log_info("Finished processing frame no. " + std::to_string(frameCount) +" in file \"" + info.xyzFilePath + "\"");
       }
-      if (res.first == avi::xyzFileStatus::eof) break;
+      frameCount++;
+      if ((info.frameEnd > 0 && frameCount >= info.frameEnd) || res.first == avi::xyzFileStatus::eof) break;
     }
     xyzfile.close();
     Logger::inst().log_info("Finished Processing");

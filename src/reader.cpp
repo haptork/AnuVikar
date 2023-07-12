@@ -60,26 +60,26 @@ std::pair<avi::ErrorStatus,int> avi::processFileTimeCmd(std::string xyzfileName,
     if (frameCount < info.frameStart || frameCount % info.framePeriod != 0) {
       auto res = avi::skipFrame(info, extraInfo, xyzfile, fs);
       frameCount++;
-      if (frameCount >= info.frameEnd || res == avi::xyzFileStatus::eof) break;
+      if (info.frameEnd > 0 && frameCount >= info.frameEnd || res == avi::xyzFileStatus::eof) break;
       continue;
     }
     auto res = avi::processTimeFile(info, extraInfo, config, xyzfile, fs, outfile, success == 0);
     if (res.second != avi::ErrorStatus::noError) {
       if (config.allFrames) std::cerr << "\nError: " << errToStr(res.second) << " in frame " << frameCount << " of file " << xyzfileName << '\n' << std::flush;
       else std::cerr << "\nError: " << errToStr(res.second) << " : file- " << xyzfileName << '\n' << std::flush;
-      Logger::inst().log_info("Error processing" + std::to_string(frameCount) +" frame in file \"" + xyzfileName + "\"");
+      Logger::inst().log_info("Error processing frame no. " + std::to_string(frameCount) +" in file \"" + info.xyzFilePath + "\"");
     } else {
       ++success;
       if (config.allFrames) {
         if (success >= 2) std::cout << "\r" << frameCount << " step processed successfully." << std::flush;
-        Logger::inst().log_info("Finished processing" + std::to_string(success) +" frame in file \"" + xyzfileName + "\"");
+        Logger::inst().log_info("Finished processing frame no. " + std::to_string(success) +" in file \"" + xyzfileName + "\"");
       }
     }
     frameCount++;
-    if (frameCount >= info.frameEnd || res.first == avi::xyzFileStatus::eof) break;
+    if ((info.frameEnd > 0 && frameCount >= info.frameEnd) || res.first == avi::xyzFileStatus::eof) break;
   }
   xyzfile.close();
-if (success > 0) return std::make_pair(avi::ErrorStatus::noError, success);
+  if (success > 0) return std::make_pair(avi::ErrorStatus::noError, success);
   return std::make_pair(avi::ErrorStatus::unknownError, 0);
 }
 
