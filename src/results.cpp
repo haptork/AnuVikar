@@ -145,7 +145,7 @@ avi::clusterFeatures(const avi::DefectVecT &defects,
     std::vector<bool> isI;
     for (const auto &jt : it.second) {
       auto x = coords(defects[jt]);
-      clusterCoords.push_back(avi::Coords{{x[0], x[1], x[2]}});
+      clusterCoords.emplace_back(avi::Coords{{x[0], x[1], x[2]}});
       isI.push_back(isInterstitial(defects[jt]));
     }
     clusterFeats[it.first] =

@@ -49,8 +49,8 @@ auto getThresh(const avi::InputInfo &info, const double &factor) {
 }
 
 // tells if two coordinates are equal within epsilon = 1e-6 range
-auto cmpApprox(const std::array<double, 3> &c1,
-               const std::array<double, 3> &c2) {
+auto cmpApprox(const avi::Coords &c1,
+               const avi::Coords &c2) {
   // constexpr auto epsilon = std::numeric_limits<double>::epsilon();
   auto epsilon = 1e-2;
   for (auto i : {0, 1, 2}) {
@@ -61,6 +61,7 @@ auto cmpApprox(const std::array<double, 3> &c1,
 
 // tells if a coordinate exists in vector of coordinates. The equality is
 // measured by cmpApprox
+/*
 auto existAnchorVac(const std::array<double, 3> &t,
                     const std::vector<std::array<double, 3>> &v) {
   auto it = std::lower_bound(
@@ -72,17 +73,18 @@ auto existAnchorVac(const std::array<double, 3> &t,
   if (it != std::end(v) && cmpApprox(*it, t) == 0) return true;
   return false;
 }
+*/
 
 // tells if a coordinate exists in vector of coordinates + bool. The equality is
 // measured by cmpApprox
 auto existAnchorInter(
-    const std::array<double, 3> &t,
-    const std::vector<std::tuple<std::array<double, 3>, bool>> &v) {
+    const avi::Coords &t,
+    const std::vector<std::tuple<avi::Coords, bool>> &v) {
   auto temp = std::make_tuple(t, false);
   auto it =
       std::lower_bound(begin(v), end(v), temp,
-                       [](const std::tuple<std::array<double, 3>, bool> &a,
-                          const std::tuple<std::array<double, 3>, bool> &b) {
+                       [](const std::tuple<avi::Coords, bool> &a,
+                          const std::tuple<avi::Coords, bool> &b) {
                          if (cmpApprox(std::get<0>(a), std::get<0>(b)) < 0)
                            return true;
                          return false;
@@ -134,7 +136,7 @@ getDisplacedAtomsTime(avi::InputInfo &info, avi::ExtraInfo &extraInfo,
   std::array<avi::Coords, 2> c;
   std::vector<double> ec;
   avi::lineStatus ls;
-  auto origin = std::array<double,3>{{info.originX, info.originY, info.originZ}};
+  auto origin = avi::StaticCoords{{info.originX, info.originY, info.originZ}};
   auto latConst = info.latticeConst;
   auto obj = avi::AddOffset{latConst, info.structure, origin};
   auto fn = [&latConst] (double x) { return x * latConst; };
@@ -187,7 +189,7 @@ getAtomsTime(avi::InputInfo &info, avi::ExtraInfo &extraInfo,
   if (info.ncell > 0) atoms.reserve(info.ncell * info.ncell * info.ncell * 2);
   std::string line;
   // read file and apply object
-  Coords c;
+  Coords c{{0.0,0.0,0.0}};
   std::vector<double> ec;
   avi::lineStatus ls;
   std::get<0>(res) = avi::xyzFileStatus::eof;
@@ -236,28 +238,28 @@ getAtomsTime(avi::InputInfo &info, avi::ExtraInfo &extraInfo,
   }
   //std::cout << "lat const: " << info.latticeConst << '\n';
   //std::cout << "origin type : " << info.originType << '\n';
-  std::vector<std::tuple<avi::Coords, double, std::string, int>> combos;
+  std::vector<std::tuple<avi::StaticCoords, double, std::string, int>> combos;
   if (info.originType > 0) {
     auto originEstimated = avi::estimateOrigin(atoms, info.latticeConst);
     combos.emplace_back(
-        avi::Coords{
+        avi::StaticCoords{
             {originEstimated[0], originEstimated[1], originEstimated[2]}},
         info.latticeConst, "estimated origin, given latConst", 0);
     if (secLatConst > 0.0) {
       auto originEstimatedSec = avi::estimateOrigin(atoms, secLatConst);
       combos.emplace_back(
-          avi::Coords{{originEstimatedSec[0], originEstimatedSec[1],
+          avi::StaticCoords{{originEstimatedSec[0], originEstimatedSec[1],
                             originEstimatedSec[2]}},
           secLatConst, "estimated originSec, boxSize/ncell latconst", 0);
     }
   }
   if ((secLatConst > 0.0 && info.originType == 0) || info.originType == 2) {
     combos.emplace_back(
-        avi::Coords{{info.originX, info.originY, info.originZ}},
+        avi::StaticCoords{{info.originX, info.originY, info.originZ}},
         info.latticeConst, "given origin, given latconst", 0);
     if (secLatConst > 0.0)
       combos.emplace_back(
-          avi::Coords{{info.originX, info.originY, info.originZ}},
+          avi::StaticCoords{{info.originX, info.originY, info.originZ}},
           secLatConst, "given origin, boxSize/ncell latconst", 0);
   }
   if (!combos.empty()) {
@@ -305,7 +307,7 @@ getAtomsTime(avi::InputInfo &info, avi::ExtraInfo &extraInfo,
     info.latticeConst = std::get<1>(combos[leastIndex]);
   }
   std::get<1>(res).reserve(atoms.size());
-  auto origin = avi::Coords{{info.originX, info.originY, info.originZ}};
+  auto origin = avi::StaticCoords{{info.originX, info.originY, info.originZ}};
   auto obj = avi::AddOffset{info.latticeConst, info.structure, origin};
   //std::cout << "latInfo: " << info.latticeConst << ", " << info.structure << ", " << origin[0] << ", " << origin[1] << ", " << origin[2] << '\n';
   std::transform(begin(atoms), end(atoms), std::back_inserter(std::get<1>(res)), obj);
@@ -803,7 +805,7 @@ avi::DefectRes avi::displacedAtoms2defects(
   //std::vector<int> vacOccUnique;
   std::unordered_map<int, int> vacOccUniqueMap;
   std::vector<int> siaThresh;
-  std::vector<std::tuple<avi::Coords, avi::Coords, double>> siaThreshFull;
+  //std::vector<std::tuple<avi::Coords, avi::Coords, double>> siaThreshFull;
   for (int i = 0; i < distVac2.size(); ++i) {
       if (distVac2[i] < threshBig) {
           vacOcc.push_back(vacOcc_[i]);
@@ -815,7 +817,7 @@ avi::DefectRes avi::displacedAtoms2defects(
             auto s = siaIn[i];
             auto v = vacIn[vacOcc_[i]];
             siaThresh.push_back(i);
-            siaThreshFull.emplace_back(s.first, v, dst);
+            //siaThreshFull.emplace_back(s.first, v, dst);
           }
       } else {
           freeSias.push_back(i);
@@ -973,11 +975,11 @@ avi::DefectRes displacedAtoms2defects(
   const auto vacGroupDistSqr = vacGroupDist * vacGroupDist;
   const auto maxSqrDist = (recombDistSqr > vacGroupDistSqr) ? recombDistSqr : vacGroupDistSqr;
   std::vector<int> freeIs;
-  const auto sortHelper = [](const std::array<double, 3> &c1, const std::array<double, 3> &c2) {
+  const auto sortHelper = [](const avi::Coords &c1, const avi::Coords &c2) {
     return cmpApprox(c1, c2) < 0;
   };
   sort( atoms.vacs.begin(), atoms.vacs.end(), sortHelper);
-  const auto areEq = [](const std::array<double, 3> &c1, const std::array<double, 3> &c2) {
+  const auto areEq = [](const avi::Coords &c1, const avi::Coords &c2) {
     return cmpApprox(c1, c2) == 0;
   };
   atoms.vacs.erase(unique(atoms.vacs.begin(), atoms.vacs.end(), areEq), atoms.vacs.end());

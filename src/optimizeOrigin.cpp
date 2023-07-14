@@ -11,7 +11,7 @@ avi::correctOrigin(const std::vector<avi::Coords> &atoms,
   std::vector<double> allOffsets;
   allOffsets.resize(atoms.size());
   const int topOffsetsToIgnore = atoms.size() > 2000 ? 1000 : atoms.size() / 10;
-  avi::Coords res;
+  avi::Coords res{{0.0, 0.0, 0.0}};
   for (int i = 0; i < 3; i++) {
     auto offsets = 0.0;
     for (size_t j = 0; j < atoms.size(); j++) {
@@ -45,7 +45,7 @@ avi::estimateOrigin(const std::vector<avi::Coords> &atoms,
     originEstimated[i] /= latConst;
   // we can return at this point but being extra careful with following
   // superflous steps
-  auto obj2 = avi::AddOffset{latConst, "bcc", originEstimated};
+  auto obj2 = avi::AddOffset{latConst, "bcc", avi::StaticCoords{{originEstimated[0], originEstimated[1], originEstimated[2]}}};
   return correctOrigin(atoms, std::get<0>(obj2(*res)),
                        latConst); // rounded off and brought to first unit cell
 }

@@ -14,8 +14,9 @@ SCENARIO("Find nearest lattice site for a coordinate given lattice structure - "
          "[defectsTest]") {
   SECTION("Normal Cases - With 0.0 as origin") {
     auto origin = Coords{{0.0, 0.0, 0.0}};
+    auto origin_ = StaticCoords{{origin[0], origin[1], origin[2]}};
     // Case 1
-    AddOffset a{1.0, "bcc", origin};
+    AddOffset a{1.0, "bcc", origin_};
     auto res = a(origin);
     REQUIRE(std::get<0>(res)[0] == Approx(0.0));
     REQUIRE(std::get<0>(res)[1] == Approx(0.0));
@@ -63,8 +64,9 @@ SCENARIO("Find nearest lattice site for a coordinate given lattice structure - "
   }
   SECTION("Normal Cases - With 0.25 as origin") {
     auto origin = Coords{{0.25, 0.25, 0.25}};
+    auto origin_ = StaticCoords{{origin[0], origin[1], origin[2]}};
     // Case 1
-    AddOffset a{1.0, "bcc", origin};
+    AddOffset a{1.0, "bcc", origin_};
     auto res = a(origin);
     REQUIRE(std::get<0>(res)[0] == Approx(origin[0]));
     REQUIRE(std::get<0>(res)[1] == Approx(origin[1]));
@@ -113,8 +115,9 @@ SCENARIO("Find nearest lattice site for a coordinate given lattice structure - "
   SECTION("Normal Cases - With 0.5 as origin and Fe lattice constant (2.85)") {
     auto origin = Coords{{0.5, 0.5, 0.5}};
     auto originMult = Coords{{0.5 * 2.85, 0.5 * 2.85, 0.5 * 2.85}};
+    auto origin_ = StaticCoords{{origin[0], origin[1], origin[2]}};
     // Case 1
-    AddOffset a{2.85, "bcc", origin};
+    AddOffset a{2.85, "bcc", origin_};
     auto res = a(originMult);
     CHECK(std::get<0>(res)[0] == Approx(origin[0]));
     CHECK(std::get<0>(res)[1] == Approx(origin[1]));
@@ -142,8 +145,9 @@ SCENARIO("Find nearest lattice site for a coordinate given lattice structure - "
   }
   SECTION("Edge Cases") {
     auto origin = Coords{{0.0, 0.0, 0.0}};
+    auto origin_ = StaticCoords{{origin[0], origin[1], origin[2]}};
     // Case 1
-    AddOffset a{1.0, "bcc", origin};
+    AddOffset a{1.0, "bcc", origin_};
     auto c1 = Coords{{-0.0, -0.00001, 0.00001}};
     auto res = a(c1);
     REQUIRE(std::get<0>(res)[0] == Approx(0.0));
@@ -472,7 +476,7 @@ TEST_CASE("Read atom coordinates from a line from lammps xyz file",
           "[defectsTest]") {
   SECTION("Normal cases") {
     avi::lineStatus ls;
-    Coords c;
+    Coords c{{0.,0.,0.}};
     std::vector<double> ec;
     // coords
     std::tie(ls, c, ec) = avi::getCoordLammps("Fe   -76.770403   +7.2e2   .7",
@@ -590,7 +594,8 @@ SCENARIO("Given xyz coordinates of all the lattice atoms, output only the "
           origin, max,
           maxInitial}; // The min and max for two unit-cells with origin 0.0
       auto latticeConst = 2.85;
-      AddOffset addOffset{latticeConst, "bcc", origin}; // Fe
+      auto origin_ = StaticCoords{{origin[0], origin[1], origin[2]}};
+      AddOffset addOffset{latticeConst, "bcc", origin_}; // Fe
       Coords interstitialCoord, vacancyCoord;
       auto i = 0;
       auto pickAt = 30; // this is ~ 10th atom
@@ -701,7 +706,8 @@ SCENARIO("Given xyz coordinates of all the lattice atoms, output only the "
           origin, max,
           maxInitial}; // The min and max for two unit-cells with origin 0.0
       auto latticeConst = 3.165; // W
-      AddOffset addOffset{latticeConst, "bcc", origin};
+      auto origin_ = StaticCoords{{origin[0], origin[1], origin[2]}};
+      AddOffset addOffset{latticeConst, "bcc", origin_};
       Coords lastInterstitialCoord, lastVacancyCoord;
       auto i = 0;
       auto pickAt = 300; // this is ~ 100th atom
@@ -789,7 +795,7 @@ SCENARIO("Given xyz coordinates of all the lattice atoms, output only the "
           origin, max,
           maxInitial}; // The min and max for two unit-cells with origin 0.0
       auto latticeConst = 3.165; // W
-      AddOffset addOffset{latticeConst, "bcc", Coords{0., 0., 0.}};
+      AddOffset addOffset{latticeConst, "bcc", StaticCoords{0., 0., 0.}};
       Coords lastInterstitialCoord, lastVacancyCoord;
       auto i = 0;
       auto pickAt = 300; // this is ~ 100th atom
@@ -894,7 +900,8 @@ SCENARIO("Given xyz coordinates of all the lattice atoms, output only the "
           maxInitial}; // The min and max for two unit-cells with origin 0.0
       REQUIRE_FALSE(ne.allMax());
       auto latticeConst = 2.85;
-      AddOffset addOffset{latticeConst, "bcc", origin}; // Fe
+      auto origin_ = StaticCoords{{origin[0], origin[1], origin[2]}};
+      AddOffset addOffset{latticeConst, "bcc", origin_}; // Fe
       auto i = 0;
       auto pickAt = 30; // this is ~ 10th atom
       while (true) {
@@ -953,7 +960,8 @@ SCENARIO("Given xyz coordinates of all the lattice atoms, output only the "
       NextExpected ne{
           origin, max,
           maxInitial}; // The min and max for two unit-cells with origin 0.0
-      AddOffset addOffset{1.0, "bcc", origin};
+      auto origin_ = StaticCoords{{origin[0], origin[1], origin[2]}};
+      AddOffset addOffset{1.0, "bcc", origin_};
       while (true) {
         atoms.emplace_back(addOffset(ne.cur()));
         if (ne.allMax()) break;
@@ -980,7 +988,7 @@ SCENARIO("Given xyz coordinates of all the lattice atoms, output only the "
       NextExpected ne{
           origin, max,
           maxInitial}; // The min and max for two unit-cells with origin 0.0
-      AddOffset addOffset{1.0, "bcc", Coords{0.0, 0.0, 0.0}};
+      AddOffset addOffset{1.0, "bcc", StaticCoords{0.0, 0.0, 0.0}};
       auto i = 0;
       while (true) {
         Coords c = ne.cur();

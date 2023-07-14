@@ -17,10 +17,10 @@
 namespace avi {
 
 // coords, isInterstitial, ClusterId, isSurviving
-using DefectT = std::tuple<std::array<double, 3>, bool, int, bool>;
+using DefectT = std::tuple<avi::Coords, bool, int, bool>;
 
 using DefectVecT =
-    std::vector<std::tuple<std::array<double, 3>, bool, int, bool>>;
+    std::vector<std::tuple<avi::Coords, bool, int, bool>>;
 
 using DefectRes = std::tuple<xyzFileStatus, ErrorStatus, DefectVecT, std::vector<int>, std::vector<std::vector<double>>>;
 
@@ -40,7 +40,7 @@ static inline auto coords(const DefectT &_d) { return std::get<0>(_d); }
 static inline auto isInterstitial(const DefectT &_d) { return std::get<1>(_d); }
 static inline auto clusterId(const DefectT &_d) { return std::get<2>(_d); }
 static inline auto isSurviving(const DefectT &_d) { return std::get<3>(_d); }
-static inline void coords(DefectT &_d, std::array<double, 3> c) {
+static inline void coords(DefectT &_d, avi::Coords c) {
   std::get<0>(_d) = c;
 }
 static inline void isInterstitial(DefectT &_d, bool a) { std::get<1>(_d) = a; }

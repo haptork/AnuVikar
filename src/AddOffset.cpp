@@ -101,12 +101,12 @@ template <class T> void print(std::array<T, 3> x) {
 }
 
 // constexpr bool debug = false;
-std::tuple<std::array<double, 3>, double, std::array<double, 3>, size_t>
-avi::AddOffset::operator()(const std::array<double, 3> &c) {
+std::tuple<avi::Coords, double, avi::Coords, size_t>
+avi::AddOffset::operator()(const avi::Coords &c) {
   std::array<long double, 3> coords{{c[0], c[1], c[2]}};
   std::array<long double, 3> modCoords;
   std::array<long double, 3> divCoords;
-  std::array<double, 3> cellPos;
+  avi::Coords cellPos{{0.0, 0.0, 0.0}};
   for (int i = 0; i < 3; i++) {
     long double orig = coords[i] - (_origin[i] * _latConst);
     // long double orig = coords[i] - (_origin[i]);

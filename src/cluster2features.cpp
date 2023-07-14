@@ -24,7 +24,7 @@ double dotv(const Coords &a, const Coords &b) {
 
 // cross product of two vectors
 auto crossProd(const Coords &v1, const Coords &v2) {
-  Coords prod;
+  Coords prod{{0.0, 0.0, 0.0}};
   prod[0] = v1[1] * v2[2] - v1[2] * v2[1];
   prod[1] = v1[2] * v2[0] - v1[0] * v2[2];
   prod[2] = v1[0] * v2[1] - v1[1] * v2[0];
@@ -33,7 +33,7 @@ auto crossProd(const Coords &v1, const Coords &v2) {
 
 // calculates angle between ba and ca
 auto calcAngle(Coords a, Coords b, Coords c) {
-  Coords v1, v2;
+  Coords v1{{0.0, 0.0, 0.0}}, v2{{0.0,0.0,0.0}};
   using avi::invars::pi;
   using avi::maxAngle;
   for (size_t i = 0; i < a.size(); ++i) {
@@ -45,7 +45,7 @@ auto calcAngle(Coords a, Coords b, Coords c) {
 }
 
 // histograms for angles, distances and adjacency for cluster characterization
-avi::featT avi::pairHists(const std::vector<std::array<double, 3>> &v,
+avi::featT avi::pairHists(const std::vector<avi::Coords> &v,
                                     const std::vector<bool> &v2,
                                     double latConst) {
   using std::array;

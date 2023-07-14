@@ -9,15 +9,17 @@
 #include <string>
 #include <tuple>
 #include <vector>
+#include <helper.hpp>
+
 
 namespace avi {
 
-using offsetCoords = std::tuple<std::array<double, 3>, double, std::array<double, 3>, size_t>;
+using offsetCoords = std::tuple<avi::Coords, double, avi::Coords, size_t>;
 
 class AddOffset {
 public:
-  AddOffset(double latConst, std::string lattice, std::array<double, 3> origin);
-  offsetCoords operator()(const std::array<double, 3> &coords);
+  AddOffset(double latConst, std::string lattice, avi::StaticCoords origin);
+  offsetCoords operator()(const avi::Coords &coords);
 
 private:
   bool _isUnitcell(double x, double y, double z, double l,

@@ -72,7 +72,7 @@ avi::xyzFileStatus avi::skipFrameAtoms(avi::InputInfo &info, avi::ExtraInfo &ext
 
 std::tuple<avi::lineStatus, avi::Coords, std::vector<double>>
 avi::getCoordGeneric(const std::string &line, const avi::frameStatus &fs, int columnStart, int ecStart, int ecEnd) {
-  avi::Coords c;
+  avi::Coords c{{0.,0.,0.}};
   std::vector<double> ec;
   auto first = std::begin(line);
   auto second = std::begin(line);
@@ -149,7 +149,7 @@ std::tuple<avi::lineStatus, avi::Coords, std::vector<double>>
 avi::getCoordCdb(const std::string &line, const avi::frameStatus &fs,
              const std::string &substrate, int columnStart, int ecStart, int ecEnd) {
   using avi::lineStatus;
-  avi::Coords c;
+  avi::Coords c{{0.,0.,0.}};
   std::vector<double> ec;
   auto first = std::find_if(begin(line), end(line),
                             [](int ch) { return !std::isspace(ch); });
@@ -236,7 +236,7 @@ preconditions:
 std::tuple<avi::lineStatus, avi::Coords, std::vector<double>>
 avi::getCoordLammps(const std::string &line,
                          const avi::frameStatus &fs, int columnStart, int ecStart, int ecEnd) {
-  avi::Coords c;
+  avi::Coords c{{0.,0.,0.}};
   std::vector<double> ec;
   auto first = std::find_if(begin(line), end(line),
                             [](int ch) { return !std::isspace(ch); });
@@ -334,7 +334,7 @@ avi::getCoordLammps(const std::string &line,
 std::tuple<avi::lineStatus, avi::Coords, std::vector<double>>
 avi::getCoordParcas(const std::string &line,
                          const avi::frameStatus &fs, int columnStart, int ecStart, int ecEnd) {
-  avi::Coords c;
+  avi::Coords c{{0.,0.,0.}};
   std::vector<double> ec;
   auto first = std::find_if(begin(line), end(line),
                             [](int ch) { return !std::isspace(ch); });
@@ -452,6 +452,7 @@ avi::getCoordDisplaced(const std::string &line, int ecStart, int ecEnd) {
     }
   }
   for (auto j = 0; j < 2; ++j) {
+    c[j] = avi::Coords{{0.0,0.0,0.0}};
     for (auto i = 0; i < 3; ++i) {
       first = std::find_if(second, end(line),
                            [](int ch) { return !std::isspace(ch); });

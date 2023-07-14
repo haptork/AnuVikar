@@ -7,7 +7,7 @@ TEST_CASE("Extra coordinates from a parcas xyz file line",
           "[extraColTest]") {
   SECTION("Normal cases") {
     avi::lineStatus ls;
-    Coords c;
+    Coords c{{0.,0.,0.}};
     std::vector<double> ec;
     // coords
     std::tie(ls, c, ec) = avi::getCoordParcas("Fe  1 -76.770403   +7.2e2   .7",
@@ -49,7 +49,7 @@ TEST_CASE("Extra coordinates from a line from lammps xyz file",
           "[extraColTest]") {
   SECTION("Normal cases") {
     avi::lineStatus ls;
-    Coords c;
+    Coords c{{0.,0.,0.}};
     std::vector<double> ec;
     // coords
     std::tie(ls, c, ec) = avi::getCoordLammps("Fe   -76.770403   +7.2e2   .7 5.0 6.0 7.0 8.0 what",
@@ -92,7 +92,7 @@ TEST_CASE("Extra coordinates from a line from Generic file",
           "[extraColTest]") {
   SECTION("Normal cases") {
     avi::lineStatus ls;
-    Coords c;
+    Coords c{{0.,0.,0.}};
     std::vector<double> ec;
     // coords
     std::tie(ls, c, ec) = avi::getCoordGeneric("Fe   -76.770403   +7.2e2   .7 5.0 6.0 7.0 8.0 what",
@@ -135,7 +135,7 @@ TEST_CASE("Extra coordinates from a line from Cdb file",
           "[extraColTest]") {
   SECTION("Normal cases") {
     avi::lineStatus ls;
-    Coords c;
+    Coords c{{0.,0.,0.}};
     std::vector<double> ec;
     // coords
     std::tie(ls, c, ec) = avi::getCoordCdb("Fe   -76.770403   +7.2e2   .7 5.0 6.0 7.0 8.0 what",

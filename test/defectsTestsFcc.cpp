@@ -15,7 +15,8 @@ SCENARIO("FCC- Find nearest lattice site for a coordinate given lattice structur
   SECTION("Normal Cases - With 0.0 as origin") {
     auto origin = Coords{{0.0, 0.0, 0.0}};
     // Case 1
-    AddOffset a{1.0, "fcc", origin};
+    auto origin_ = StaticCoords{{origin[0], origin[1], origin[2]}};
+    AddOffset a{1.0, "fcc", origin_};
     auto res = a(origin);
     REQUIRE(std::get<0>(res)[0] == Approx(0.0));
     REQUIRE(std::get<0>(res)[1] == Approx(0.0));
@@ -72,7 +73,8 @@ SCENARIO("FCC- Find nearest lattice site for a coordinate given lattice structur
   SECTION("Normal Cases - With 0.25 as origin") {
     auto origin = Coords{{0.25, 0.25, 0.25}};
     // Case 1
-    AddOffset a{1.0, "fcc", origin};
+    auto origin_ = StaticCoords{{origin[0], origin[1], origin[2]}};
+    AddOffset a{1.0, "fcc", origin_};
     auto res = a(origin);
     REQUIRE(std::get<0>(res)[0] == Approx(origin[0]));
     REQUIRE(std::get<0>(res)[1] == Approx(origin[1]));
@@ -155,7 +157,8 @@ SCENARIO("FCC- Find nearest lattice site for a coordinate given lattice structur
   SECTION("Edge Cases") {
     auto origin = Coords{{0.0, 0.0, 0.0}};
     // Case 1
-    AddOffset a{1.0, "bcc", origin};
+    auto origin_ = StaticCoords{{origin[0], origin[1], origin[2]}};
+    AddOffset a{1.0, "bcc", origin_};
     auto c1 = Coords{{-0.0, -0.00001, 0.00001}};
     auto res = a(c1);
     REQUIRE(std::get<0>(res)[0] == Approx(0.0));
@@ -533,7 +536,8 @@ CHECK(ne.incrementFcc() == Coords{{2.75, 2.75, 2.25}});
            origin, max,
            maxInitial, maxInitial}; // The min and max for two unit-cells with origin 0.0
        auto latticeConst = 1.00;
-       AddOffset addOffset{latticeConst, "fcc", origin}; // Fe
+       auto origin_ = StaticCoords{{origin[0], origin[1], origin[2]}};
+       AddOffset addOffset{latticeConst, "fcc", origin_}; // Fe
        Coords interstitialCoord, vacancyCoord;
        auto i = 0;
        auto pickAt = 30; // this is ~ 10th atom
@@ -645,7 +649,8 @@ CHECK(ne.incrementFcc() == Coords{{2.75, 2.75, 2.25}});
           origin, max,
           maxInitial, maxInitial}; // The min and max for two unit-cells with origin 0.0
       auto latticeConst = 3.165; // W
-      AddOffset addOffset{latticeConst, "fcc", origin};
+      auto origin_ = StaticCoords{{origin[0], origin[1], origin[2]}};
+      AddOffset addOffset{latticeConst, "fcc", origin_};
       Coords lastInterstitialCoord, lastVacancyCoord;
       auto i = 0;
       auto pickAt = 300; // this is ~ 100th atom
@@ -738,7 +743,8 @@ CHECK(ne.incrementFcc() == Coords{{2.75, 2.75, 2.25}});
           maxInitial, maxInitial}; // The min and max for two unit-cells with origin 0.0
       REQUIRE_FALSE(ne.allMax());
       auto latticeConst = 2.85;
-      AddOffset addOffset{latticeConst, "fcc", origin}; // Fe
+      auto origin_ = StaticCoords{{origin[0], origin[1], origin[2]}};
+      AddOffset addOffset{latticeConst, "fcc", origin_}; // Fe
       auto i = 0;
       auto pickAt = 30; // this is ~ 10th atom
       while (true) {
@@ -798,7 +804,8 @@ CHECK(ne.incrementFcc() == Coords{{2.75, 2.75, 2.25}});
       NextExpected ne{
           origin, max,
           maxInitial, maxInitial}; // The min and max for two unit-cells with origin 0.0
-      AddOffset addOffset{1.0, "fcc", origin};
+      auto origin_ = StaticCoords{{origin[0], origin[1], origin[2]}};
+      AddOffset addOffset{1.0, "fcc", origin_};
       while (true) {
         atoms.emplace_back(addOffset(ne.cur()));
         if (ne.allMax()) break;
@@ -825,7 +832,7 @@ CHECK(ne.incrementFcc() == Coords{{2.75, 2.75, 2.25}});
       NextExpected ne{
           origin, max,
           maxInitial, maxInitial}; // The min and max for two unit-cells with origin 0.0
-      AddOffset addOffset{1.0, "fcc", Coords{0.0, 0.0, 0.0}};
+      AddOffset addOffset{1.0, "fcc", StaticCoords{0.0, 0.0, 0.0}};
       auto i = 0;
       while (true) {
         Coords c = ne.cur();

@@ -115,7 +115,9 @@ struct Config {
   std::string outputJSONFilePath{"cascades-data.json"};
 };
 
-using Coords = std::array<double, 3>;
+using StaticCoords = std::array<double, 3>;
+//using Coords = StaticCoords;
+using Coords = std::vector<double>;
 
 static inline double calcDistSqr(Coords a, Coords b) {
   double dist = 0.0;

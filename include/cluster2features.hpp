@@ -25,7 +25,7 @@ using distFeatT = std::array<double, distBins>;
 using angleFeatT = std::array<double, angleBins>;
 using adjNn2FeatT = std::array<double, adjBins>;
 using featT = std::tuple<distFeatT, angleFeatT, adjNn2FeatT>;
-featT pairHists(const std::vector<std::array<double, 3>> &v,
+featT pairHists(const std::vector<avi::Coords> &v,
                 const std::vector<bool> &v2, double latConst);
 } // namespace avi
 #endif // CLUSTER2FEATURES_ANUVIKAR_HPP
