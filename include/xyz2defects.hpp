@@ -38,7 +38,7 @@ DefectRes atoms2defects(std::tuple<xyzFileStatus, std::vector<offsetCoords>, std
               InputInfo &info, ExtraInfo &extraInfo, const Config &config, bool isBcc);
 
 DefectRes displacedAtoms2defects(std::tuple<xyzFileStatus, dispCoords,
-                                 std::vector<std::vector<double>>> d, double lc, double box, const Config &config);
+                                 std::vector<std::vector<double>>> d, double lc, avi::Coords box, const Config &config);
 
 xyzFileStatus skipFrame(avi::InputInfo &info, avi::ExtraInfo &extraInfo, std::istream &infile, avi::frameStatus fs);
 

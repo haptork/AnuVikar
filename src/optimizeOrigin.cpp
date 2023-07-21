@@ -24,8 +24,8 @@ avi::correctOrigin(const std::vector<avi::Coords> &atoms,
     std::nth_element(
         begin(allOffsets), begin(allOffsets) + toConsider, end(allOffsets),
         [](double a, double b) { return std::fabs(a) < std::fabs(b); });
-    for (size_t i = 0; i < toConsider; i++) {
-      offsets += allOffsets[i];
+    for (size_t j = 0; j < toConsider; j++) {
+      offsets += allOffsets[j];
     }
     res[i] = origin[i] + ((offsets / toConsider) / latConst);
   }

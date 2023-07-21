@@ -80,8 +80,10 @@ SCENARIO("The software should read required simulation info correctly from the "
     avi::InputInfo lhs, rhs;
     avi::ExtraInfo lhsExtra, rhsExtra;
     lhsExtra.substrate = "Fe";
-    lhs.boxSize = 154.98;
-    lhs.ncell = 54;
+    lhs.boxSizeX = 154.98;
+    lhs.boxSizeY = 154.98;
+    lhs.boxSizeZ = 154.98;
+    lhs.ncellX = 54;
     lhsExtra.energy = 10;
     lhsExtra.xrec = -31.93;
     lhsExtra.yrec = -31.65;
@@ -97,8 +99,8 @@ SCENARIO("The software should read required simulation info correctly from the "
     std::tie(rhs, rhsExtra, status) =
         extractInfoParcas("./data/parcas/005-md-10-1.in", "005-md-10-1.in");
     REQUIRE(status == true);
-    CHECK(lhs.ncell == rhs.ncell);
-    CHECK(lhs.boxSize == Approx(rhs.boxSize));
+    CHECK(lhs.ncellX == rhs.ncellX);
+    CHECK(lhs.boxSizeX == Approx(rhs.boxSizeX));
     CHECK(lhsExtra.energy == Approx(rhsExtra.energy));
     CHECK(lhsExtra.rectheta == Approx(rhsExtra.rectheta));
     CHECK(lhsExtra.recphi == Approx(rhsExtra.recphi));
@@ -124,7 +126,7 @@ SCENARIO("The software should read required simulation info correctly from the "
     avi::InputInfo lhs, rhs;
     avi::ExtraInfo lhsExtra, rhsExtra;
     lhsExtra.substrate = "Fe";
-    lhs.ncell = 10;
+    lhs.ncellX = 10;
     lhsExtra.energy = 1;
     lhs.originX = 0.0;
     lhs.structure = "bcc";
@@ -134,7 +136,7 @@ SCENARIO("The software should read required simulation info correctly from the "
     std::tie(rhs, rhsExtra, status) =
         extractInfoLammps("./data/lammps/Pos1.in", "Pos1.in");
     REQUIRE(status == true);
-    CHECK(lhs.ncell == rhs.ncell);
+    CHECK(lhs.ncellX == rhs.ncellX);
     CHECK(lhsExtra.energy == Approx(rhsExtra.energy));
     CHECK(lhs.latticeConst == Approx(rhs.latticeConst));
     CHECK(lhs.originX == Approx(rhs.originX));

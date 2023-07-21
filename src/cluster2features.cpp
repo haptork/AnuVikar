@@ -47,7 +47,7 @@ auto calcAngle(Coords a, Coords b, Coords c) {
 // histograms for angles, distances and adjacency for cluster characterization
 avi::featT avi::pairHists(const std::vector<avi::Coords> &v,
                                     const std::vector<bool> &v2,
-                                    double latConst) {
+                                    double latConst, avi::Coords box) {
   using std::array;
   using std::vector;
   using avi::distBins;
@@ -72,7 +72,7 @@ avi::featT avi::pairHists(const std::vector<avi::Coords> &v,
     for (size_t j = 0; j < v.size(); ++j) {
       // if (v2[j]) continue;
       if (i == j) continue;
-      auto dist = calcDist(v[i], v[j]);
+      auto dist = calcDist(v[i], v[j], box);
       if (dist < nn2) adjacencyCount++;
       if (dist > nn4 * 2) continue; // ?
       pairDists.push_back(dist / latConst);
@@ -102,9 +102,9 @@ avi::featT avi::pairHists(const std::vector<avi::Coords> &v,
   for (size_t i = 0; i < v.size(); ++i) {
     if (v2[i]) continue;
     for (size_t j = 0; j < v.size(); ++j) {
-      if (i == j || calcDist(v[i], v[j]) > nn4) continue;
+      if (i == j || calcDist(v[i], v[j], box) > nn4) continue;
       for (size_t k = j + 1; k < v.size(); ++k) {
-        if (i == k || v2[j] != v2[k] || calcDist(v[i], v[k]) > nn4) continue;
+        if (i == k || v2[j] != v2[k] || calcDist(v[i], v[k], box) > nn4) continue;
         auto bin = calcAngle(v[i], v[j], v[k]) / angleBinSize;
         if (bin >= angleHist.size()) bin = angleHist.size() - 1;
         ++angleHist[bin];

@@ -13,25 +13,25 @@
 
 // group defects into clusters
 avi::DefectVecT avi::groupDefects(const avi::DefectVecT &defects,
-                                            const double &latticeConst) {
+                                            const double &latticeConst, const avi::Coords &box) {
   // std::cout << "Grouping defects " << defects.size() << '\n' << std::flush;
   using UF = avi::UnionFind<2, avi::DefectT>;
   auto nn = (std::sqrt(3) * latticeConst) / 2 + avi::invars::epsilon;
   auto nn2sqr = (latticeConst * latticeConst) + avi::invars::epsilon; // std::sqrt(3) * info.latticeConst + 0.01;
   auto nn4sqr = (nn * nn) * 4;
-  auto pred = [nn2sqr, nn4sqr](const avi::DefectT &a,
+  auto pred = [nn2sqr, nn4sqr, box](const avi::DefectT &a,
                          const avi::DefectT &b) {
     using namespace DefectTWrap;
     if ((isVacancy(a) && isVacancy(b) && (isSurviving(a) && isSurviving(b))) || 
         (isInterstitial(a) && isInterstitial(b) && (isSurviving(a) && isSurviving(b)))) { // both vacancies and surviving
-      return calcDistSqr(coords(a), coords(b)) < nn4sqr;
+      return calcDistSqr(coords(a), coords(b), box, nn4sqr) < nn4sqr;
     } 
-    return calcDistSqr(coords(a), coords(b)) < nn2sqr;
+    return calcDistSqr(coords(a), coords(b), box, nn2sqr) < nn2sqr;
   };
   UF uf;
-  for (const auto &it : defects) {
+  std::for_each(begin(defects), end(defects), [&pred, &uf](const auto &it) {
     uf.uniteIf(it, pred);
-  }
+  });
   // std::cout << "Finished grouping defects\n" << std::flush;
   return uf.getAll();
   // coords, isInterstitial, ClusterId, isSurviving
@@ -99,7 +99,7 @@ avi::clusterMapping(const avi::DefectVecT &defects) {
 }
 
 // fraction of defects in cluster
-std::tuple<int, double, double>
+std::tuple<int, int, double, double>
 avi::getNDefectsAndClusterFractions(const avi::DefectVecT &defects) {
   using namespace avi::DefectTWrap;
   auto inClusterI = 0;
@@ -120,13 +120,13 @@ avi::getNDefectsAndClusterFractions(const avi::DefectVecT &defects) {
         inClusterV++;
     }
   }
-  auto nDefects = inClusterI + singlesI;
-  // auto nDefects = inClusterV + singlesV;
+  auto nSia = inClusterI + singlesI;
+  auto nVac = inClusterV + singlesV;
   double inClusterFractionI =
-      (nDefects > 0) ? (double)(inClusterI)*100.0 / nDefects : 0;
+      (nSia > 0) ? (double)(inClusterI)*100.0 / nSia : 0;
   double inClusterFractionV =
-      (nDefects > 0) ? (double)(inClusterV)*100.0 / nDefects : 0;
-  return std::make_tuple(nDefects, inClusterFractionI, inClusterFractionV);
+      (nVac > 0) ? (double)(inClusterV)*100.0 / nVac : 0;
+  return std::make_tuple(nSia, nVac, inClusterFractionI, inClusterFractionV);
 }
 
 // cluster to cluster features mapping
@@ -134,7 +134,7 @@ avi::ClusterFeatMapT
 avi::clusterFeatures(const avi::DefectVecT &defects,
                           const avi::ClusterIdMapT &clusters,
                           avi::ClusterSizeMapT &clusterCounts,
-                          double latticeConst) {
+                          double latticeConst, avi::Coords box) {
   using namespace avi::DefectTWrap;
   avi::ClusterFeatMapT clusterFeats;
   using avi::invars::minClusterPoints;
@@ -149,7 +149,7 @@ avi::clusterFeatures(const avi::DefectVecT &defects,
       isI.push_back(isInterstitial(defects[jt]));
     }
     clusterFeats[it.first] =
-        avi::pairHists(clusterCoords, isI, latticeConst);
+        avi::pairHists(clusterCoords, isI, latticeConst, box);
   }
   return clusterFeats;
 }

@@ -20,6 +20,9 @@
 
 #include <iostream>
 #include <unordered_set>
+#include <nanoflann.hpp>
+
+#define IFPRLLEXEC
 
 avi::xyzFileStatus avi::skipFrame(avi::InputInfo &info, avi::ExtraInfo &extraInfo, std::istream &infile, avi::frameStatus fs) {
   avi::xyzFileStatus fl = 
@@ -97,7 +100,7 @@ auto existAnchorInter(
 // than a threshold
 auto clean(
     std::vector<std::tuple<avi::Coords, avi::Coords, bool, size_t>> &inter,
-    std::vector<std::tuple<avi::Coords, bool>> &vac, double latticeConst, double box) {
+    std::vector<std::tuple<avi::Coords, bool>> &vac, double latticeConst, avi::Coords box) {
   const auto &thresh = latticeConst*latticeConst; // * sqrt(3) / 2;
   for (size_t i = 0; i < vac.size(); ++i) {
     if (!std::get<1>(vac[i])) continue;
@@ -186,7 +189,8 @@ getAtomsTime(avi::InputInfo &info, avi::ExtraInfo &extraInfo,
   std::tuple<avi::xyzFileStatus, vector<avi::offsetCoords>, std::vector<std::vector<double>>>
       res; // for all the atoms along with nearest closest sites and offset
   const auto &latConst = info.latticeConst;
-  if (info.ncell > 0) atoms.reserve(info.ncell * info.ncell * info.ncell * 2);
+  size_t factor = (info.structure == "bcc") ? 2 : 4;
+  if (info.ncellX > 0) atoms.reserve(info.ncellX * info.ncellY * info.ncellZ * factor);
   std::string line;
   // read file and apply object
   Coords c{{0.0,0.0,0.0}};
@@ -226,9 +230,16 @@ getAtomsTime(avi::InputInfo &info, avi::ExtraInfo &extraInfo,
   if (atoms.empty()) return res;
   //std::cout <<"first atom: " << atoms[0][0] << ", " << atoms[0][1] << ", " << atoms[0][2] << '\n';
   // assuming bcc /fcc structure and perfect initial. TODO: for imperfect skip, making latticizer off
-  if (info.structure[0] == 'b') info.ncell = std::round(std::cbrt(atoms.size() / 2.0));
-  else if (info.structure[0] == 'f') info.ncell = std::round(std::cbrt(atoms.size() / 4.0));
-  auto secLatConst = (info.boxSize > 0.0) ? info.boxSize / info.ncell : -1.0;
+  if (info.structure[0] == 'b') {
+    info.ncellX = std::round(std::cbrt(atoms.size() / 2.0));
+    info.ncellY = info.ncellX;
+    info.ncellZ = info.ncellX;
+  } else if (info.structure[0] == 'f') {
+    info.ncellX = std::round(std::cbrt(atoms.size() / 4.0));
+    info.ncellY = info.ncellX;
+    info.ncellZ = info.ncellX;
+  }
+  auto secLatConst = (info.boxSizeX > 0.0 && info.isPerfect) ? info.boxSizeX / info.ncellX : -1.0;
   if (secLatConst > 0.0 && std::fabs(info.latticeConst - secLatConst) < 1e-3) {
     secLatConst = -1.0;
   }
@@ -313,7 +324,11 @@ getAtomsTime(avi::InputInfo &info, avi::ExtraInfo &extraInfo,
   std::transform(begin(atoms), end(atoms), std::back_inserter(std::get<1>(res)), obj);
   //std::cout << "\natoms1: " << atoms[0][0] << " | " << atoms[atoms.size() - 1][0] << '\n';
   //std::cout << "\natoms res: " << std::get<3>(std::get<1>(res)[0]) << " | " << std::get<3>(std::get<1>(res)[1]) << "\n";
-  if (info.boxSize < 0.0) { info.boxSize = info.latticeConst * info.ncell; }
+  if (info.boxSizeX < 0.0 && info.isPerfect) { 
+    info.boxSizeX = info.latticeConst * info.ncellX; 
+    info.boxSizeY = info.latticeConst * info.ncellY; 
+    info.boxSizeZ = info.latticeConst * info.ncellZ; 
+  }
   return res;
 }
 
@@ -350,7 +365,8 @@ avi::displaced2defectsTime(avi::InputInfo &mainInfo,
   auto atoms = getDisplacedAtomsTime(mainInfo, extraInfo, config, infile, fs);
   if (std::get<1>(atoms).vacs.empty())
     return std::make_tuple(std::get<0>(atoms), ErrorStatus::noError, avi::DefectVecT{}, std::vector<int>{}, std::vector<std::vector<double>>{});
-  return avi::displacedAtoms2defects(atoms, mainInfo.latticeConst, mainInfo.boxSize, config);
+  avi::Coords box{{mainInfo.boxSizeX, mainInfo.boxSizeY, mainInfo.boxSizeZ}};
+  return avi::displacedAtoms2defects(atoms, mainInfo.latticeConst, box, config);
 }
 
 /*
@@ -642,7 +658,8 @@ avi::DefectRes avi::atoms2defects(
   for (auto it: freeInterstitials) {
     interstitials.push_back(it);
   }
-  clean(interstitials, vacancies, info.latticeConst, info.boxSize); // clean again
+  avi::Coords box{{info.boxSizeX, info.boxSizeY, info.boxSizeZ}};
+  clean(interstitials, vacancies, info.latticeConst, box); // clean again
   std::vector<int> vacSiasNu;
   for (auto i = 0; i < vacancies.size(); i++) {
     auto &it = vacancies[i];
@@ -721,32 +738,105 @@ avi::DefectRes avi::atoms2defects(
   return std::make_tuple(std::get<0>(stAtoms), ErrorStatus::noError, std::move(defects), std::move(vacSiasNu), std::move(ids));
 }
 
-auto cleanDisplaced(avi::DefectVecT &defect, double thresh_, double box) {
+struct PointCloudAdaptor4Clean {
+
+  const avi::DefectVecT& points;
+  avi::Coords boxSize;
+
+  explicit PointCloudAdaptor4Clean(const avi::DefectVecT& points, avi::Coords boxSize) : points{points}, boxSize{boxSize} {}
+
+  // Must return the number of data points
+  inline size_t kdtree_get_point_count() const { return points.size(); }
+
+  // Returns the distance between the point at index 'idx_p' and the query point 'query'
+  inline double kdtree_distance(const double* p1, const size_t idx_p, const size_t /*idx_q*/, size_t /*size*/) const {
+    using avi::DefectTWrap::coords;
+    const auto &p0 = coords(points[idx_p]);
+    const double dx = p0[0] - p1[0];
+    const double dy = p0[1] - p1[1];
+    const double dz = p0[2] - p1[2];
+
+    const double dx_periodic = fmin(fabs(dx), fabs(dx - boxSize[0]));
+    const double dy_periodic = fmin(fabs(dy), fabs(dy - boxSize[1]));
+    const double dz_periodic = fmin(fabs(dz), fabs(dz - boxSize[2]));
+
+    return (dx_periodic * dx_periodic + dy_periodic * dy_periodic + dz_periodic * dz_periodic);
+  }
+
+  // Returns the dim'th component of the idx'th point in the class
+  inline double kdtree_get_pt(const size_t idx, int dim) const {
+    return avi::DefectTWrap::coords(points[idx])[dim];
+  }
+
+  // Optional bounding-box computation: return false to default to a standard bbox computation loop
+  template <class BBOX>
+  bool kdtree_get_bbox(BBOX& /*bb*/) const { return false; }
+};
+
+auto cleanDisplaced(avi::DefectVecT &defects, double thresh_, avi::Coords box) {
   using avi::DefectTWrap::coords;
   using avi::DefectTWrap::isSurviving;
   using avi::DefectTWrap::isInterstitial;
   auto thresh = thresh_*thresh_; // * sqrt(3) / 2;
-  for (size_t i = 0; i < defect.size(); ++i) {
-    if (isInterstitial(defect[i]) || !isSurviving(defect[i])) continue;
-    auto min = thresh + 1e-6;
-    size_t minj = 0;
-    for (size_t j = 0; j < defect.size(); ++j) {
-      if (!isInterstitial(defect[j]) || !isSurviving(defect[j])) continue;
-      auto dist = avi::calcDistSqr(coords(defect[i]), coords(defect[j]), box);
-      if (dist < min) {
-        min = dist;
-        minj = j;
-      }
+
+
+  typedef nanoflann::KDTreeSingleIndexAdaptor<nanoflann::L2_Simple_Adaptor<double, PointCloudAdaptor4Clean>, PointCloudAdaptor4Clean, 3> KDTree;
+  PointCloudAdaptor4Clean pointCloud(defects, box);
+  KDTree kdTree(3, pointCloud);
+  kdTree.buildIndex();
+  std::vector<nanoflann::ResultItem<uint32_t, double>> matches;
+  matches.reserve(6);
+  nanoflann::SearchParameters params;
+  params.sorted = true;
+  std::for_each(IFPRLLEXEC begin(defects), end(defects), [&defects, &kdTree, thresh, &matches, &params](auto &defect){
+    matches.clear();
+    if (!isInterstitial(defect) || !isSurviving(defect)) return;
+    const auto &p = coords(defect);
+    const size_t nMatches = kdTree.radiusSearch(&p[0], thresh, matches, params);
+    for (size_t i = 0; i < nMatches; i++) {
+      auto j = matches[i].first;
+      if (isInterstitial(defects[j]) || !isSurviving(defects[j])) continue;
+      isSurviving(defect, false);
+      isSurviving(defects[j], false);
     }
-    if (min < thresh) {
-      isSurviving(defect[i], false);
-      isSurviving(defect[minj], false);
-    }
-  }
+  });
 }
 
+struct PointCloudAdaptor {
+
+  const std::vector<avi::Coords>& points;
+  avi::Coords boxSize;
+
+  explicit PointCloudAdaptor(const std::vector<avi::Coords>& points, avi::Coords boxSize) : points{points}, boxSize{boxSize} {}
+
+  // Must return the number of data points
+  inline size_t kdtree_get_point_count() const { return points.size(); }
+
+  // Returns the distance between the point at index 'idx_p' and the query point 'query'
+  inline double kdtree_distance(const double* p1, const size_t idx_p, const size_t /*idx_q*/, size_t /*size*/) const {
+    const double dx = points[idx_p][0] - p1[0];
+    const double dy = points[idx_p][1] - p1[1];
+    const double dz = points[idx_p][2] - p1[2];
+
+    const double dx_periodic = fmin(fabs(dx), fabs(dx - boxSize[0]));
+    const double dy_periodic = fmin(fabs(dy), fabs(dy - boxSize[1]));
+    const double dz_periodic = fmin(fabs(dz), fabs(dz - boxSize[2]));
+
+    return (dx_periodic * dx_periodic + dy_periodic * dy_periodic + dz_periodic * dz_periodic);
+  }
+
+  // Returns the dim'th component of the idx'th point in the class
+  inline double kdtree_get_pt(const size_t idx, int dim) const {
+    return points[idx][dim];
+  }
+
+  // Optional bounding-box computation: return false to default to a standard bbox computation loop
+  template <class BBOX>
+  bool kdtree_get_bbox(BBOX& /*bb*/) const { return false; }
+};
+
 avi::DefectRes avi::displacedAtoms2defects(
-    std::tuple<avi::xyzFileStatus, avi::dispCoords, std::vector<std::vector<double>>> statoms, double latticeConst, double box, const avi::Config &config) {
+    std::tuple<avi::xyzFileStatus, avi::dispCoords, std::vector<std::vector<double>>> statoms, double latticeConst, avi::Coords box, const avi::Config &config) {
   using avi::Coords;
   using std::get;
   using std::tuple;
@@ -760,7 +850,7 @@ avi::DefectRes avi::displacedAtoms2defects(
   const auto threshDist = config.thresholdFactor * latticeConst + 1e-4;
   const auto threshDistSqr = threshDist * threshDist;
   // TODO: add threshold based defects
-  const auto recombDist = latticeConst*1.5;//latticeConst; //0.345 * latticeConst + 1e-4;
+  const auto recombDist = latticeConst*1.2;//latticeConst; //0.345 * latticeConst + 1e-4;
   const auto recombDistSqr = recombDist * recombDist;
   std::vector<int> freeIs;
   // TODO: !add threshold based defects (configurable as before)
@@ -783,8 +873,23 @@ avi::DefectRes avi::displacedAtoms2defects(
   const auto& threshBig = recombDistSqr;
   const auto& threshSmall = threshDistSqr * 0.8;
 
-  std::vector<double> distVac2;
-  std::vector<int> vacOcc_;
+  std::vector<double> distVac2(siaIn.size());
+  std::vector<int> vacOcc_(siaIn.size());
+
+  typedef nanoflann::KDTreeSingleIndexAdaptor<nanoflann::L2_Simple_Adaptor<double, PointCloudAdaptor>, PointCloudAdaptor, 3> KDTree;
+  PointCloudAdaptor pointCloud(vacIn, box);
+  KDTree kdTree(3, pointCloud);
+  kdTree.buildIndex();
+  const size_t numNeighbors = 1;
+  std::vector<u_int32_t> neighborIndices(numNeighbors);
+  std::vector<double> neighborDistances(numNeighbors);
+
+  std::for_each(IFPRLLEXEC begin(siaIn), end(siaIn), [&kdTree, &neighborDistances, &neighborIndices, numNeighbors, &distVac2, &vacOcc_](const auto &sia) {
+      kdTree.knnSearch(&sia.first[0], numNeighbors, &neighborIndices[0], &neighborDistances[0]);
+      distVac2[sia.second] = neighborDistances[0];
+      vacOcc_[sia.second] = neighborIndices[0];
+  });
+  /*
   for (const auto& sia : siaIn) {
       double minDistance = std::numeric_limits<double>::max();
       int minIndex = -1;
@@ -798,6 +903,7 @@ avi::DefectRes avi::displacedAtoms2defects(
       distVac2.push_back(minDistance);
       vacOcc_.push_back(minIndex);
   }
+  */
   // Calculate vacOcc, freeSias, vacOccUnique
   std::vector<int> vacOcc;
   vacOcc.reserve(vacOcc_.size());
@@ -844,7 +950,7 @@ avi::DefectRes avi::displacedAtoms2defects(
   //std::copy_if(vacOccUniqueMap.begin(), vacOccUniqueMap.end(), std::back_inserter(vacRecomb),
                 //[&](std::pair<int, int> indexCount) { return vacOccUniqueMap[index] > 1; });
   
-  std::sort(begin(vacRecomb), end(vacRecomb));
+  std::sort(IFPRLLEXEC begin(vacRecomb), end(vacRecomb));
 
   indexOfVacRecomb.reserve(vacRecomb.size());
   vacRecombInverted.reserve(vacRecomb.size());
@@ -857,11 +963,11 @@ avi::DefectRes avi::displacedAtoms2defects(
 
   std::vector<int> sortOrder(indexOfVacRecomb.size());
   std::iota(sortOrder.begin(), sortOrder.end(), 0);
-  std::sort(sortOrder.begin(), sortOrder.end(),
+  std::sort(IFPRLLEXEC sortOrder.begin(), sortOrder.end(),
               [&](int i1, int i2) { return vacRecombInverted[i1] < vacRecombInverted[i2]; });
 
   std::vector<int> sia(indexOfVacRecomb.size());
-  std::transform(sortOrder.begin(), sortOrder.end(), sia.begin(),
+  std::transform(IFPRLLEXEC sortOrder.begin(), sortOrder.end(), sia.begin(),
                    [&](int i) { return indexOfVacRecomb[i]; });
 
   std::vector<int> vacRecombNonUnique(vacRecombInverted.size());
@@ -956,7 +1062,7 @@ avi::DefectRes avi::displacedAtoms2defects(
 }
 
 avi::DefectRes displacedAtoms2defects(
-    std::tuple<avi::xyzFileStatus, avi::dispCoords, std::vector<std::vector<double>>> statoms, double latticeConst, double box, const avi::Config &config) {
+    std::tuple<avi::xyzFileStatus, avi::dispCoords, std::vector<std::vector<double>>> statoms, double latticeConst, avi::Coords box, const avi::Config &config) {
   using avi::Coords;
   using std::get;
   using std::tuple;
@@ -967,9 +1073,9 @@ avi::DefectRes displacedAtoms2defects(
   auto &atoms = std::get<1>(statoms);
   constexpr auto epsilon = 1e-4;
   const auto nn = (std::sqrt(3) * latticeConst) / 2 + epsilon;
-  const auto threshDist = 0.345 * latticeConst + 1e-4;
+  const auto threshDist = config.thresholdFactor * latticeConst + 1e-4;
   const auto threshDistSqr = threshDist * threshDist;
-  const auto recombDist = latticeConst;//latticeConst; //0.345 * latticeConst + 1e-4;
+  const auto recombDist = latticeConst*1.2;//latticeConst; //0.345 * latticeConst + 1e-4;
   const auto recombDistSqr = recombDist * recombDist;
   const auto vacGroupDist = nn;
   const auto vacGroupDistSqr = vacGroupDist * vacGroupDist;

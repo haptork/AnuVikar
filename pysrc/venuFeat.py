@@ -669,6 +669,8 @@ def getTriadLines(cascade, cid, triads):
         line = Line(p1, p2)
         angles = getSymmetricPlaneAngle(line)     
         vacIndex = triads[coordIndex][0]
+        if vacIndex not in cvmap:
+          continue  
         vacClusterIndex = cvmap[vacIndex]
         latticeSite = Point(cascade['coords'][vacIndex][:3])      
         line1 = Line(p1, latticeSite)        

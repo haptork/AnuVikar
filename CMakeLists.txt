@@ -30,8 +30,8 @@ add_library(${PROJECT_NAME}_shared SHARED ${SOURCES} src/somain.cpp)
 add_executable(${PROJECT_NAME} src/main.cpp)
 add_executable(${PROJECT_NAME}_test ${TESTS})
 
-target_link_libraries(${PROJECT_NAME} ${PROJECT_NAME}_lib --coverage)
-target_link_libraries(${PROJECT_NAME}_test ${PROJECT_NAME}_lib --coverage)
+target_link_libraries(${PROJECT_NAME} ${PROJECT_NAME}_lib pthread)
+target_link_libraries(${PROJECT_NAME}_test ${PROJECT_NAME}_lib pthread --coverage)
 
 include(CTest)
 

@@ -127,6 +127,8 @@ void avi::resToKeyValue(std::ostream &outfile,
     }
   };
   outfile << "\"error\":\"" << errorStr(res.err) << "\",\n"
+          << "\"n_sia\":" << res.nSia << ",\n"
+          << "\"n_vac\":" << res.nVac << ",\n"
           << "\"n_defects\":" << res.nDefects << ",\n"
           << "\"n_clusters\":" << res.nClusters << ",\n"
           << "\"max_cluster_size_I\":" << res.maxClusterSizeI << ",\n"
@@ -174,8 +176,10 @@ void avi::infoToKeyValue(std::ostream &outfile,
           << "\"energy\":" << ei.energy << ",\n"
           << "\"structure\": \"" << i.structure << "\",\n"
           << "\"simulationTime\":" << ei.simulationTime << ",\n"
-          << "\"ncell\":" << i.ncell << ",\n"
-          << "\"boxSize\":" << i.boxSize << ",\n"
+          << "\"ncell\": [" << i.ncellX << ", " << i.ncellY << ", "
+	  << i.ncellZ << "],\n"
+          << "\"boxSize\": [" << i.boxSizeX << ", " << i.boxSizeY << ", "
+	  << i.boxSizeZ << "],\n"
           << "\"origin\": [" << i.originX << ", " << i.originY << ", "
           << i.originZ << "],\n"
           << "\"rectheta\":" << ei.rectheta << ",\n"
@@ -197,7 +201,7 @@ void avi::infoToKeyValue(std::ostream &outfile,
 
 void avi::configToKeyValue(std::ostream &outfile,
                                 const avi::Config &c) {
-  outfile << "\"version\": \"" << "0.4" << "\",\n"
+  outfile << "\"version\": \"" << "0.6" << "\",\n"
           << "\"onlyDefects\": \"" << c.onlyDefects << "\",\n"
           << "\"isFindDistribution\": \"" << c.isFindDistribAroundPKA << "\",\n"
           << "\"isFindClusterFeatures\": \"" << c.isFindClusterFeatures << "\",\n"
@@ -214,7 +218,7 @@ void avi::configToKeyValue(std::ostream &outfile,
 void avi::printJson(std::ostream &outfile, const avi::InputInfo &i,
                          const avi::ExtraInfo &ei,
                          const avi::resultsT &res) {
-  outfile << std::fixed << std::setprecision(4);
+  outfile << std::fixed << std::setprecision(2);
   outfile << "{";
   avi::infoToKeyValue(outfile, i, ei);
   outfile << ",\n";

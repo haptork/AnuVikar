@@ -60,8 +60,12 @@ enum class xyzFileStatus : bool {
 std::string errToStr(ErrorStatus err);
 
 struct InputInfo {
-  int ncell{-1};
-  double boxSize{-1.0};
+  int ncellX{-1};
+  int ncellY{-1};
+  int ncellZ{-1};
+  double boxSizeX{-1.0};
+  double boxSizeY{-1.0};
+  double boxSizeZ{-1.0};
   double latticeConst{-1.0};
   double originX{0.0};
   double originY{0.0};
@@ -77,6 +81,7 @@ struct InputInfo {
   int frameStart{0};
   int frameEnd{0};
   int framePeriod{1};
+  bool isPerfect{true};
   // int latConstType{0}; // 0->only given, 1-> only optimized, 2-> both
 };
 
@@ -116,8 +121,8 @@ struct Config {
 };
 
 using StaticCoords = std::array<double, 3>;
-//using Coords = StaticCoords;
-using Coords = std::vector<double>;
+using Coords = StaticCoords;
+//using Coords = std::vector<float>;
 
 static inline double calcDistSqr(Coords a, Coords b) {
   double dist = 0.0;
@@ -131,19 +136,34 @@ static inline double calcDist(avi::Coords a, avi::Coords b) {
   return std::sqrt(calcDistSqr(a, b));
 }
 
-static inline double calcDistSqr(Coords a, Coords b, double box) {
+static inline double calcDistSqr(Coords a, Coords b, Coords box) {
   double dist = 0.0;
   for (auto i : {0, 1, 2}) {
     auto diff = fabs(a[i] - b[i]);
-    if (box > 0 && diff > box/2) {
-      diff = box - diff;
+    if (box[i] > 0 && diff > box[i]/2) {
+      diff = box[i] - diff;
     }
     dist += (diff) * (diff);
   }
   return dist;
 }
 
+static inline double calcDist(avi::Coords a, avi::Coords b, Coords box) {
+  return std::sqrt(calcDistSqr(a, b, box));
+}
 
+static inline double calcDistSqr(Coords a, Coords b, Coords box, double lim) {
+  double dist = 0.0;
+  for (auto i : {0, 1, 2}) {
+    auto diff = fabs(a[i] - b[i]);
+    if (box[i] > 0 && diff > box[i]/2) {
+      diff = box[i] - diff;
+    }
+    if (diff > lim || dist > lim) return lim;
+    dist += (diff) * (diff);
+  }
+  return dist;
+}
 
 // write standard array as comma separated values
 template <class T, size_t n>

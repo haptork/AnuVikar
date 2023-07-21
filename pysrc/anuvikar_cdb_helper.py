@@ -93,8 +93,12 @@ def xmlFileToDict(fname):
 
 
 class _InputInfoCpp(Structure):
-    _fields_ = [("ncell", c_int),
-                ("boxSize", c_double),
+    _fields_ = [("ncellX", c_int),
+                ("ncellY", c_int),
+                ("ncellZ", c_int),
+                ("boxSizeX", c_double),
+                ("boxSizeY", c_double),
+                ("boxSizeZ", c_double),
                 ("latticeConst", c_double),
                 ("originX", c_double),
                 ("originY", c_double),
@@ -107,6 +111,7 @@ class _InputInfoCpp(Structure):
                 ("frameStart", c_int),
                 ("frameEnd", c_int),
                 ("framePeriod", c_int),
+                ("isPerfect", c_bool),
                 ("xyzFileType", c_char_p),
                 ("xyzFilePath", c_char_p),
                 ("structure", c_char_p)
@@ -313,7 +318,7 @@ def getDefaultConfig(*logModes):
 
     """
     config = {
-        "version": 0.4,
+        "version": 0.6,
         "anuvikarLib": "./_build/libanuvikar_shared.so",
         "onlyDefects": False,
         "isFindDistribAroundPKA": True,
@@ -480,8 +485,12 @@ def getDefaultInfos():
     substrate: element or material e.g. Fe or W.
     """
     inputInfo = {
-        "ncell": -1,
-        "boxSize": -1.0,
+        "ncellX": -1,
+        "ncellY": -1,
+        "ncellZ": -1,
+        "boxSizeX": -1.0,
+        "boxSizeY": -1.0,
+        "boxSizeZ": -1.0,
         "latticeConst": -1.0,
         "originX": 0.0,
         "originY": 0.0,
@@ -494,6 +503,7 @@ def getDefaultInfos():
         "frameStart": -1,
         "frameEnd": -1,
         "framePeriod": 1,
+        "isPerfect": True,
         "xyzFileType": "CASCADESDBLIKECOLS",
         "xyzFilePath": "",
         "structure": "bcc"
@@ -880,8 +890,6 @@ def getInfoFromMeta(metaInfo, metaFilePath, xyzFilePath):
     info, extraInfo = getDefaultInfos()
     extraInfo["energy"] = float(metaInfo['PKA']['energy']['#text'])  # assuming kev (TODO check)
     extraInfo['simulationTime'] = float(metaInfo['simulation_time']['#text'])
-    extraInfo["boxSize"] = float(
-        metaInfo['simulation_box']['box_X_length']['#text'])
     extraInfo["substrate"] = metaInfo['material']['formula']
     potUsed = metaInfo['interatomic_potential']['uri']
     cdborg = "https://cascadesdb.org/potential/"
@@ -897,9 +905,15 @@ def getInfoFromMeta(metaInfo, metaFilePath, xyzFilePath):
     extraInfo["id"] = metaInfo['@id']
     info["latticeConst"] = float(
         metaInfo['material']['lattice_parameters']['a']['#text'])
-    info["boxSize"] = float(metaInfo['simulation_box']
+    info["boxSizeX"] = float(metaInfo['simulation_box']
                             ['box_X_length']['#text'])
-    info["ncell"] = -1  # int(extraInfo["boxSize"] / info["latticeConst"])
+    info["boxSizeY"] = float(metaInfo['simulation_box']
+                            ['box_Y_length']['#text'])
+    info["boxSizeZ"] = float(metaInfo['simulation_box']
+                            ['box_Z_length']['#text'])
+    info["ncellX"] = -1  # int(extraInfo["boxSize"] / info["latticeConst"])
+    info["ncellY"] = -1  # int(extraInfo["boxSize"] / info["latticeConst"])
+    info["ncellZ"] = -1  # int(extraInfo["boxSize"] / info["latticeConst"])
     info["originType"] = 1
     info["temperature"] = float(metaInfo['initial_temperature']['#text'])
     info["structure"] = metaInfo['material']['structure']

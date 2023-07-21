@@ -129,10 +129,30 @@ avi::extractInfoLammps(std::string fpath, std::string ftag) {
       auto val = removeParcasComments(trim(std::string{eq, std::end(line)}));
       if (cmd == "substrate") {
         extraInfo.substrate = val;
+      } else if (cmd == "isPerfect") {
+        mainInfo.isPerfect = std::stoi(val);
+      } else if (cmd == "boxSizeX") {
+        mainInfo.boxSizeX = std::stod(val);
+      } else if (cmd == "boxSizeY") {
+        mainInfo.boxSizeY = std::stod(val);
+      } else if (cmd == "boxSizeZ") {
+        mainInfo.boxSizeZ = std::stod(val);
+      } else if (cmd == "boxSize") {
+        mainInfo.boxSizeX = std::stod(val);
+        mainInfo.boxSizeY = std::stod(val);
+        mainInfo.boxSizeZ = std::stod(val);
       } else if (cmd == "latticeConstant") {
         mainInfo.latticeConst = std::stod(val);
+      } else if (cmd == "ncellX") {
+        mainInfo.ncellX = std::stoi(val);
+      } else if (cmd == "ncellY") {
+        mainInfo.ncellY = std::stoi(val);
+      } else if (cmd == "ncellZ") {
+        mainInfo.ncellZ = std::stoi(val);
       } else if (cmd == "ncell") {
-        mainInfo.ncell = std::stoi(val);
+        mainInfo.ncellX = std::stoi(val);
+        if(mainInfo.ncellY < 0) mainInfo.ncellY = mainInfo.ncellX;
+        if(mainInfo.ncellZ < 0) mainInfo.ncellZ = mainInfo.ncellX;
       } else if (cmd == "recen") {
         extraInfo.energy = std::stod(val);
       } else if (cmd == "xrec") {
@@ -211,8 +231,10 @@ avi::extractInfoLammps(std::string fpath, std::string ftag) {
   if (mainInfo.latticeConst < 0.0) {
     return std::make_tuple(mainInfo, extraInfo, false);
   }
-  if (mainInfo.ncell > 0) {
-    mainInfo.boxSize = mainInfo.latticeConst * mainInfo.ncell;
+  if (mainInfo.ncellX > 0 && mainInfo.isPerfect) {
+    mainInfo.boxSizeX = mainInfo.latticeConst * mainInfo.ncellX;
+    mainInfo.boxSizeY = mainInfo.latticeConst * mainInfo.ncellY;
+    mainInfo.boxSizeZ = mainInfo.latticeConst * mainInfo.ncellZ;
   }
   if (mainInfo.xyzColumnStart == -1 && mainInfo.extraColumnStart > -1) {
     return std::make_tuple(mainInfo, extraInfo, false);
@@ -369,10 +391,22 @@ avi::extractInfoParcas(std::string fpath, std::string ftag) {
           extraInfo.substrate = removeParcasComments(line.substr(10));
           count++;
         } else if (cmd == "box(1)") {
-          mainInfo.boxSize = std::stod(removeParcasComments(line.substr(10)));
+          mainInfo.boxSizeX = std::stod(removeParcasComments(line.substr(10)));
+          count++;
+        } else if (cmd == "box(2)") {
+          mainInfo.boxSizeY = std::stod(removeParcasComments(line.substr(10)));
+          count++;
+         } else if (cmd == "box(3)") {
+          mainInfo.boxSizeZ = std::stod(removeParcasComments(line.substr(10)));
           count++;
         } else if (cmd == "ncell(1)") {
-          mainInfo.ncell = std::stod(removeParcasComments(line.substr(10)));
+          mainInfo.ncellX = std::stod(removeParcasComments(line.substr(10)));
+          count++;
+        } else if (cmd == "ncell(2)") {
+          mainInfo.ncellY = std::stod(removeParcasComments(line.substr(10)));
+          count++;
+        } else if (cmd == "ncell(3)") {
+          mainInfo.ncellZ = std::stod(removeParcasComments(line.substr(10)));
           count++;
         } else if (cmd == "recen") {
           extraInfo.energy =
@@ -411,8 +445,8 @@ avi::extractInfoParcas(std::string fpath, std::string ftag) {
     }
     mainInfo.structure = "bcc"; // TODO: extend for fcc, without assumption
     infile.close();
-    if (count == 13) { // got all the info
-      mainInfo.latticeConst = mainInfo.boxSize / mainInfo.ncell;
+    if (count == 17) { // got all the info
+      mainInfo.latticeConst = mainInfo.boxSizeX / mainInfo.ncellX;
       extraInfo.isPkaGiven = true;
       extraInfo.infile = fpath;
       return std::make_tuple(mainInfo, extraInfo, true);

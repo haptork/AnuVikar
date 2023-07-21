@@ -14,8 +14,12 @@
 #include <xyz2defects.hpp>
 
 struct InfoPyInput {
-  int ncell;
-  double boxSize;
+  int ncellX;
+  int ncellY;
+  int ncellZ;
+  double boxSizeX;
+  double boxSizeY;
+  double boxSizeZ;
   double latticeConst;
   double originX;
   double originY;
@@ -28,6 +32,7 @@ struct InfoPyInput {
   int frameStart{-1};
   int frameEnd{-1};
   int framePeriod{1};
+  bool isPerfect;
   const char *xyzFileType;
   const char *xyzFilePath;
   const char *structure;
@@ -89,8 +94,12 @@ auto pyConfigToCppConfig(const PyConfig &pyConfig) {
 auto pyInfoToCppInfo(const InfoPyInput &pyinput,
                      const InfoPyExtraInput &pyextra) {
   avi::InputInfo input;
-  input.ncell = pyinput.ncell;
-  input.boxSize = pyinput.boxSize;
+  input.ncellX = pyinput.ncellX;
+  input.ncellY = pyinput.ncellY;
+  input.ncellZ = pyinput.ncellZ;
+  input.boxSizeX = pyinput.boxSizeX;
+  input.boxSizeY = pyinput.boxSizeY;
+  input.boxSizeZ = pyinput.boxSizeZ;
   input.latticeConst = pyinput.latticeConst;
   input.originX = pyinput.originX;
   input.originY = pyinput.originY;
@@ -107,6 +116,7 @@ auto pyInfoToCppInfo(const InfoPyInput &pyinput,
   input.frameStart = pyinput.frameStart;
   input.frameEnd = pyinput.frameEnd;
   input.framePeriod = pyinput.framePeriod;
+  input.isPerfect = pyinput.isPerfect;
   input.xyzFilePath = std::string{pyinput.xyzFilePath};
   input.structure = std::string{pyinput.structure};
   std::string simCodeStr = std::string{pyinput.xyzFileType};

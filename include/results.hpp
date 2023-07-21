@@ -52,6 +52,8 @@ static inline auto isVacancy(const DefectT &_d) { return !std::get<1>(_d); }
 struct resultsT {
   ErrorStatus err;
   int nDefects;
+  int nSia;
+  int nVac;
   int nClusters;
   int maxClusterSizeI;
   int maxClusterSizeV;
@@ -68,7 +70,7 @@ struct resultsT {
 };
 
 // group defects into clusters
-DefectVecT groupDefects(const DefectVecT &defects, const double &latticeConst);
+DefectVecT groupDefects(const DefectVecT &defects, const double &latticeConst, const avi::Coords &box);
 
 // surviving and all defects count for groups of all sizes, including single
 // defects that are currently given a clusterId of their own
@@ -86,7 +88,7 @@ ClusterIdMapT clusterMapping(const DefectVecT &defects);
 ClusterIVMapT clusterIVType(const ClusterIdMapT &, ClusterSizeMapT &);
 
 // number of defects and fraction of interstitials and vacancies in cluster
-std::tuple<int, double, double>
+std::tuple<int, int, double, double>
 getNDefectsAndClusterFractions(const avi::DefectVecT &defects);
 
 using ClusterFeatMapT = std::unordered_map<int, featT>;
@@ -96,7 +98,7 @@ using ClusterFeatMapT = std::unordered_map<int, featT>;
 ClusterFeatMapT clusterFeatures(const avi::DefectVecT &defects,
                                 const avi::ClusterIdMapT &clusters,
                                 avi::ClusterSizeMapT &clusterCounts,
-                                double latticeConst);
+                                double latticeConst, avi::Coords box);
 
 // maximum of surviving defects among all of clusters
 // (interstitial and vacancy cluster separately)

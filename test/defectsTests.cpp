@@ -637,22 +637,25 @@ SCENARIO("Given xyz coordinates of all the lattice atoms, output only the "
       auto ungroupedDefects = std::get<2>(ungroupedDefectsDumbbellPair);
       REQUIRE(ungroupedDefects.size() == 4); // 2 interstitials, 2 vacancies
       SECTION("Check cluster grouping") {
-        int nDefects;
+        int nSia, nVac;
         double inClusterFractionI, inClusterFractionV;
-        auto defects = groupDefects(ungroupedDefects, latticeConst);
+	avi::Coords box{{info.boxSizeX, info.boxSizeY, info.boxSizeZ}};
+        auto defects = groupDefects(ungroupedDefects, latticeConst, box);
         auto clusterSizeMap = clusterSizes(defects);
         REQUIRE(clusterSizeMap.size() ==
                 2); // one cluster of three and other of one
         SECTION("Check ndefects and cluster sizes") {
-          std::tie(nDefects, inClusterFractionI, inClusterFractionV) =
+          std::tie(nSia, nVac, inClusterFractionI, inClusterFractionV) =
               avi::getNDefectsAndClusterFractions(defects);
-          REQUIRE(nDefects == 1);
+          REQUIRE(nSia == 1);
+          REQUIRE(nVac == 1);
           REQUIRE(inClusterFractionI == Approx(100.0));
           REQUIRE(inClusterFractionV == Approx(100.0));
           ignoreSmallClusters(defects, clusterSizeMap);
-          std::tie(nDefects, inClusterFractionI, inClusterFractionV) =
+          std::tie(nSia, nVac, inClusterFractionI, inClusterFractionV) =
               avi::getNDefectsAndClusterFractions(defects);
-          REQUIRE(nDefects == 1);
+          REQUIRE(nSia == 1);
+          REQUIRE(nVac == 1);
           REQUIRE(inClusterFractionI == Approx(0.0));
           REQUIRE(inClusterFractionV == Approx(0.0)); // changed
           auto clusterIdMap = avi::clusterMapping(defects);
@@ -674,8 +677,9 @@ SCENARIO("Given xyz coordinates of all the lattice atoms, output only the "
         */
 
           SECTION("Check cluster features") {
+	    avi::Coords box{{-1, -1, -1}};
             auto feats = avi::clusterFeatures(
-                defects, clusterIdMap, clusterSizeMap, latticeConst);
+                defects, clusterIdMap, clusterSizeMap, latticeConst, box);
             REQUIRE(feats.size() == 0);
             /*
             const auto &distFeat = std::get<0>(std::begin(feats)->second);
@@ -751,24 +755,27 @@ SCENARIO("Given xyz coordinates of all the lattice atoms, output only the "
       auto ungroupedDefectsDumbbellPair = atoms2defects(fsAtoms, info, extraInfo, config, true);
       auto ungroupedDefects = std::get<2>(ungroupedDefectsDumbbellPair);
       REQUIRE(ungroupedDefects.size() == 10);
-      int nDefects;
+      int nSia, nVac;
       double inClusterFractionI, inClusterFractionV;
-      std::tie(nDefects, inClusterFractionI, inClusterFractionV) =
+      std::tie(nSia, nVac, inClusterFractionI, inClusterFractionV) =
           avi::getNDefectsAndClusterFractions(ungroupedDefects);
       SECTION("Check cluster grouping") {
-        auto defects = groupDefects(ungroupedDefects, latticeConst);
+	avi::Coords box {{info.boxSizeX, info.boxSizeY, info.boxSizeZ}};
+        auto defects = groupDefects(ungroupedDefects, latticeConst, box);
         auto clusterSizeMap = clusterSizes(defects);
         REQUIRE(clusterSizeMap.size() == 5);
         SECTION("Check ndefects and cluster sizes") {
-          std::tie(nDefects, inClusterFractionI, inClusterFractionV) =
+          std::tie(nSia, nVac, inClusterFractionI, inClusterFractionV) =
               avi::getNDefectsAndClusterFractions(defects);
-          REQUIRE(nDefects == 4);
+          REQUIRE(nSia == nVac);
+          REQUIRE(nSia == 4);
           REQUIRE(inClusterFractionI == Approx(100.0));
           REQUIRE(inClusterFractionV == Approx(100.0));
           ignoreSmallClusters(defects, clusterSizeMap);
-          std::tie(nDefects, inClusterFractionI, inClusterFractionV) =
+          std::tie(nSia, nVac, inClusterFractionI, inClusterFractionV) =
               avi::getNDefectsAndClusterFractions(defects);
-          REQUIRE(nDefects == 4);
+          REQUIRE(nSia == nVac);
+          REQUIRE(nSia == 4);
           REQUIRE(inClusterFractionI == Approx(100.0));
           REQUIRE(inClusterFractionV == Approx(0.0)); // changed
           auto clusterIdMap = avi::clusterMapping(defects);
@@ -837,12 +844,13 @@ SCENARIO("Given xyz coordinates of all the lattice atoms, output only the "
       auto ungroupedDefectsDumbbellPair = atoms2defects(fsAtoms, info, extraInfo, config, true);
       auto ungroupedDefects = std::get<2>(ungroupedDefectsDumbbellPair);
       CHECK(ungroupedDefects.size() == 200);
-      int nDefects;
+      int nSia, nVac;
       double inClusterFractionI, inClusterFractionV;
-      std::tie(nDefects, inClusterFractionI, inClusterFractionV) =
+      std::tie(nSia, nVac, inClusterFractionI, inClusterFractionV) =
           avi::getNDefectsAndClusterFractions(ungroupedDefects);
       SECTION("Check cluster grouping") {
-        auto defects = groupDefects(ungroupedDefects, latticeConst);
+	avi::Coords box{{info.boxSizeX, info.boxSizeY, info.boxSizeZ}};
+        auto defects = groupDefects(ungroupedDefects, latticeConst, box);
         /*
         for (auto x : defects) {
           for (auto c : std::get<0>(x)) std::cout << c << ", ";
@@ -853,15 +861,15 @@ SCENARIO("Given xyz coordinates of all the lattice atoms, output only the "
         auto clusterSizeMap = clusterSizes(defects);
         REQUIRE(clusterSizeMap.size() == 2);  // TODO:  unimportant! check again
         SECTION("Check ndefects and cluster sizes") {
-          std::tie(nDefects, inClusterFractionI, inClusterFractionV) =
+          std::tie(nSia, nVac, inClusterFractionI, inClusterFractionV) =
               avi::getNDefectsAndClusterFractions(defects);
-          REQUIRE(nDefects == 99);
+          REQUIRE(nSia == 99);
           REQUIRE(inClusterFractionI == Approx(100.0));
           REQUIRE(inClusterFractionV == Approx(100.0));
           ignoreSmallClusters(defects, clusterSizeMap);
-          std::tie(nDefects, inClusterFractionI, inClusterFractionV) =
+          std::tie(nSia, nVac, inClusterFractionI, inClusterFractionV) =
               avi::getNDefectsAndClusterFractions(defects);
-          REQUIRE(nDefects == 99);
+          REQUIRE(nSia == 99);
           REQUIRE(inClusterFractionI == Approx(100.0));
           REQUIRE(inClusterFractionV == Approx(100.0));
           auto clusterIdMap = avi::clusterMapping(defects);
@@ -1060,7 +1068,7 @@ SCENARIO("Given xyz coordinates of all the displaced atoms, output only the "
       auto latticeConst = 3.165;
       Config config;
       auto ungroupedDefectsDumbbellPair =
-          displacedAtoms2defects(fsDisplaced, latticeConst, 400.0, config);
+          displacedAtoms2defects(fsDisplaced, latticeConst, Coords{{-1.0, -1.0, -1.0}}, config);
       auto ungroupedDefects = std::get<2>(ungroupedDefectsDumbbellPair);
         auto printDefects = [](const avi::DefectVecT &d) {
     size_t count = 0;
@@ -1074,9 +1082,9 @@ SCENARIO("Given xyz coordinates of all the displaced atoms, output only the "
   //printDefects(ungroupedDefects);
 
       CHECK(ungroupedDefects.size() == 13 * 2);
-      int nDefects;
+      int nSia, nVac;
       double inClusterFractionI, inClusterFractionV;
-      std::tie(nDefects, inClusterFractionI, inClusterFractionV) =
+      std::tie(nSia, nVac, inClusterFractionI, inClusterFractionV) =
           avi::getNDefectsAndClusterFractions(ungroupedDefects);
       /*
       std::sort(std::begin(ungroupedDefects), std::end(ungroupedDefects), [](const auto &a, const auto &b) {
@@ -1118,17 +1126,19 @@ SCENARIO("Given xyz coordinates of all the displaced atoms, output only the "
       };
 */
       SECTION("Check cluster grouping") {
-        auto defects = groupDefects(ungroupedDefects, latticeConst);
+        auto defects = groupDefects(ungroupedDefects, latticeConst, Coords{{-1,-1,-1}});
         auto clusterSizeMap = clusterSizes(defects);
         REQUIRE(clusterSizeMap.size() == 4);
         SECTION("Check ndefects and cluster sizes") {
-          std::tie(nDefects, inClusterFractionI, inClusterFractionV) =
-              avi::getNDefectsAndClusterFractions(defects);
-          CHECK(nDefects == 3);
+          std::tie(nSia, nVac, inClusterFractionI, inClusterFractionV) =
+               avi::getNDefectsAndClusterFractions(defects);
+	  //printDefects(defects);
+          CHECK(nSia == 3);
+          CHECK(nVac == 3);
           CHECK(inClusterFractionI == Approx(100.0));
           CHECK(inClusterFractionV == Approx(100.0));
           ignoreSmallClusters(defects, clusterSizeMap);
-          std::tie(nDefects, inClusterFractionI, inClusterFractionV) =
+          std::tie(nSia, nVac, inClusterFractionI, inClusterFractionV) =
               avi::getNDefectsAndClusterFractions(defects);
           CHECK(inClusterFractionI == Approx(100.0));
           CHECK(inClusterFractionV == Approx(0.0));
@@ -1146,8 +1156,9 @@ SCENARIO("Given xyz coordinates of all the displaced atoms, output only the "
           CHECK(maxClusterSizeI == 3);
           CHECK(maxClusterSizeV == 0);
           SECTION("Check cluster features") {
+	    avi::Coords box{{-1, -1, -1}};
             auto feats = avi::clusterFeatures(
-                defects, clusterIdMap, clusterSizeMap, latticeConst);
+                defects, clusterIdMap, clusterSizeMap, latticeConst, box);
             REQUIRE(feats.size() == 1);
             const auto &distFeat = std::get<0>(std::begin(feats)->second);
             REQUIRE(distFeat[0] == Approx(0.0));

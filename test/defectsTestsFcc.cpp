@@ -581,22 +581,23 @@ CHECK(ne.incrementFcc() == Coords{{2.75, 2.75, 2.25}});
        auto ungroupedDefects = std::get<2>(ungroupedDefectsDumbbellPair);
        REQUIRE(ungroupedDefects.size() == 4); // 2 interstitials, 2 vacancies
        SECTION("Check cluster grouping") {
-         int nDefects;
+         int nSia, nVac;
          double inClusterFractionI, inClusterFractionV;
-         auto defects = groupDefects(ungroupedDefects, latticeConst);
+	 avi::Coords box{{info.boxSizeX, info.boxSizeY, info.boxSizeZ}};
+         auto defects = groupDefects(ungroupedDefects, latticeConst, box);
          auto clusterSizeMap = clusterSizes(defects);
          REQUIRE(clusterSizeMap.size() ==
                  2); // one cluster of three and other of one
          SECTION("Check ndefects and cluster sizes") {
-           std::tie(nDefects, inClusterFractionI, inClusterFractionV) =
+           std::tie(nSia, nVac, inClusterFractionI, inClusterFractionV) =
                avi::getNDefectsAndClusterFractions(defects);
-           REQUIRE(nDefects == 1);
+           REQUIRE(nSia == 1);
            REQUIRE(inClusterFractionI == Approx(100.0));
            REQUIRE(inClusterFractionV == Approx(100.0));
            ignoreSmallClusters(defects, clusterSizeMap);
-           std::tie(nDefects, inClusterFractionI, inClusterFractionV) =
+           std::tie(nSia, nVac, inClusterFractionI, inClusterFractionV) =
                avi::getNDefectsAndClusterFractions(defects);
-           REQUIRE(nDefects == 1);
+           REQUIRE(nSia == 1);
            REQUIRE(inClusterFractionI == Approx(0.0));
            REQUIRE(inClusterFractionV == Approx(0.0)); // changed
            auto clusterIdMap = avi::clusterMapping(defects);
@@ -617,8 +618,9 @@ CHECK(ne.incrementFcc() == Coords{{2.75, 2.75, 2.25}});
            }
          */
            SECTION("Check cluster features") {
+	    avi::Coords box{{-1, -1, -1}};
              auto feats = avi::clusterFeatures(
-                 defects, clusterIdMap, clusterSizeMap, latticeConst);
+                 defects, clusterIdMap, clusterSizeMap, latticeConst, box);
              REQUIRE(feats.size() == 0);
              /*
              const auto &distFeat = std::get<0>(std::begin(feats)->second);
@@ -694,24 +696,26 @@ CHECK(ne.incrementFcc() == Coords{{2.75, 2.75, 2.25}});
       auto ungroupedDefectsDumbbellPair = atoms2defects(fsAtoms, info, extraInfo, config, false);
       auto ungroupedDefects = std::get<2>(ungroupedDefectsDumbbellPair);
       REQUIRE(ungroupedDefects.size() == 16);
-      int nDefects;
+      int nSia, nVac;
       double inClusterFractionI, inClusterFractionV;
-      std::tie(nDefects, inClusterFractionI, inClusterFractionV) =
+      std::tie(nSia, nVac, inClusterFractionI, inClusterFractionV) =
           avi::getNDefectsAndClusterFractions(ungroupedDefects);
       SECTION("Check cluster grouping") {
-        auto defects = groupDefects(ungroupedDefects, latticeConst);
+	avi::Coords box{{info.boxSizeX, info.boxSizeY, info.boxSizeZ}};
+        auto defects = groupDefects(ungroupedDefects, latticeConst, box);
         auto clusterSizeMap = clusterSizes(defects);
         REQUIRE(clusterSizeMap.size() == 7);
         SECTION("Check ndefects and cluster sizes") {
-          std::tie(nDefects, inClusterFractionI, inClusterFractionV) =
+          std::tie(nSia, nVac, inClusterFractionI, inClusterFractionV) =
               avi::getNDefectsAndClusterFractions(defects);
-          REQUIRE(nDefects == 8);
+          REQUIRE(nSia == 8);
+          REQUIRE(nVac == 6);
           REQUIRE(inClusterFractionI == Approx(100.0));
-          REQUIRE(inClusterFractionV == Approx(75.0));
+          REQUIRE(inClusterFractionV == Approx(100.0));
           ignoreSmallClusters(defects, clusterSizeMap);
-          std::tie(nDefects, inClusterFractionI, inClusterFractionV) =
+          std::tie(nSia, nVac, inClusterFractionI, inClusterFractionV) =
               avi::getNDefectsAndClusterFractions(defects);
-          REQUIRE(nDefects == 8);
+          REQUIRE(nSia == 8);
           REQUIRE(inClusterFractionI == Approx(100.0));
           REQUIRE(inClusterFractionV == Approx(0.0)); // changed
           auto clusterIdMap = avi::clusterMapping(defects);

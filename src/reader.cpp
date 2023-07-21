@@ -83,6 +83,12 @@ std::pair<avi::ErrorStatus,int> avi::processFileTimeCmd(std::string xyzfileName,
   return std::make_pair(avi::ErrorStatus::unknownError, 0);
 }
 
+inline int countDefects(const avi::DefectVecT &defects) {
+  return std::count_if(begin(defects), end(defects), [](const auto &x) {
+    return avi::DefectTWrap::isSurviving(x) && avi::DefectTWrap::isInterstitial(x);
+  });
+}
+
 std::pair<avi::xyzFileStatus, avi::ErrorStatus> 
                           avi::processTimeFile(avi::InputInfo &info,
                                      avi::ExtraInfo &extraInfo,
@@ -95,7 +101,16 @@ std::pair<avi::xyzFileStatus, avi::ErrorStatus>
           ? avi::displaced2defectsTime(info, extraInfo, config, infile, fs)
           : avi::xyz2defectsTime(info, extraInfo, config, infile, fs);
   if (res.err != avi::ErrorStatus::noError) return std::make_pair(fl, res.err);
-  res.defects = avi::groupDefects(std::move(res.defects), info.latticeConst);
+  if (config.onlyDefects) {
+    if (!isFirst) outfile << "\n,";
+    res.nDefects = countDefects(res.defects);
+    res.nSia = res.nDefects;
+    res.nVac = res.nDefects;
+    avi::printJson(outfile, info, extraInfo, res);
+    return std::make_pair(fl, res.err);
+  }
+  avi::Coords box{{info.boxSizeX, info.boxSizeY, info.boxSizeZ}};
+  res.defects = avi::groupDefects(std::move(res.defects), info.latticeConst, box);
   //std::cout << "\nec size at reader: " << res.extraCols.size() << '\n';
   auto clusterSizeMap = avi::clusterSizes(res.defects);
   filterZeroClusters(res.defects, clusterSizeMap,
@@ -105,10 +120,10 @@ std::pair<avi::xyzFileStatus, avi::ErrorStatus>
   res.clustersIV = avi::clusterIVType(res.clusters, clusterSizeMap);
   if (config.isFindClusterFeatures)
     res.feats = avi::clusterFeatures(res.defects, res.clusters,
-                                          clusterSizeMap, info.latticeConst);
-  int nDefects;
-  std::tie(res.nDefects, res.inClusterFractionI, res.inClusterFractionV) =
+                                          clusterSizeMap, info.latticeConst, box);
+  std::tie(res.nSia, res.nVac, res.inClusterFractionI, res.inClusterFractionV) =
       avi::getNDefectsAndClusterFractions(res.defects);
+  res.nDefects = std::min(res.nSia, res.nVac);
   std::tie(res.maxClusterSizeI, res.maxClusterSizeV) =
       avi::getMaxClusterSizes(clusterSizeMap, res.clusters);
   res.nClusters = res.clusters.size();
