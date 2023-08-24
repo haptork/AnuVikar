@@ -157,7 +157,7 @@ int main(int argc, char *argv[]) {
           << "\n";
   outfile.close();
   std::cout << '\r' << curIndex << " out of " << curIndex
-            << " processed successfully.\n";
+            << " processed.\n";
   std::cout << "Output file written " + outpath << '\n';
   Logger::inst().log_info("Output file written " + outpath);
   return 0;

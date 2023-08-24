@@ -65,8 +65,8 @@ std::pair<avi::ErrorStatus,int> avi::processFileTimeCmd(std::string xyzfileName,
     }
     auto res = avi::processTimeFile(info, extraInfo, config, xyzfile, fs, outfile, success == 0);
     if (res.second != avi::ErrorStatus::noError) {
-      if (config.allFrames) std::cerr << "\nError: " << errToStr(res.second) << " in frame " << frameCount << " of file " << xyzfileName << '\n' << std::flush;
-      else std::cerr << "\nError: " << errToStr(res.second) << " : file- " << xyzfileName << '\n' << std::flush;
+      if (config.allFrames) std::cerr << "\nError: " << errToStr(res.second) << " in frame " << frameCount << " of file " << xyzfileName << " input-file: " << extraInfo.infile << '\n' << std::flush;
+      else std::cerr << "\nError: " << errToStr(res.second) << " : file- " << xyzfileName << " input-file: " << extraInfo.infile << '\n' << std::flush;
       Logger::inst().log_info("Error processing frame no. " + std::to_string(frameCount) +" in file \"" + info.xyzFilePath + "\"");
     } else {
       ++success;
@@ -96,6 +96,7 @@ std::pair<avi::xyzFileStatus, avi::ErrorStatus>
   auto res = avi::resultsT{};
   //res.err = avi::ErrorStatus::noError;
   avi::xyzFileStatus fl;
+  std::cout << "her\n";
   std::tie(fl, res.err, res.defects, res.coDefects, res.extraCols) = 
       (info.xyzFileType == avi::XyzFileType::lammpsDisplacedCompute)
           ? avi::displaced2defectsTime(info, extraInfo, config, infile, fs)
