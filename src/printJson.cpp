@@ -218,7 +218,7 @@ void avi::configToKeyValue(std::ostream &outfile,
 void avi::printJson(std::ostream &outfile, const avi::InputInfo &i,
                          const avi::ExtraInfo &ei,
                          const avi::resultsT &res) {
-  outfile << std::fixed << std::setprecision(2);
+  outfile << std::fixed << std::setprecision(4);
   outfile << "{";
   avi::infoToKeyValue(outfile, i, ei);
   outfile << ",\n";
