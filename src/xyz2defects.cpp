@@ -230,7 +230,7 @@ getAtomsTime(avi::InputInfo &info, avi::ExtraInfo &extraInfo,
   if (atoms.empty()) return res;
   //std::cout <<"first atom: " << atoms[0][0] << ", " << atoms[0][1] << ", " << atoms[0][2] << '\n';
   // assuming bcc /fcc structure and perfect initial. TODO: for imperfect skip, making latticizer off
-  if (info.structure[0] == 'b') {
+  if (info.structure[0] == 'b') { // TODO: and nceelX not previously set
     info.ncellX = std::round(std::cbrt(atoms.size() / 2.0));
     info.ncellY = info.ncellX;
     info.ncellZ = info.ncellX;
@@ -446,6 +446,25 @@ void setCenter(avi::ExtraInfo &extraInfo, avi::Coords minC,
     extraInfo.zrec = ((maxC[2] - minC[2]) / 2.0 + minC[2])*latConst;
   }
 }
+/*
+void writeXyz(std::string filePath, std::vector<avi::offsetCoords> &positions) {
+  std::ofstream outfile{filePath};
+  outfile << positions.size();
+  outfile << "\nItems: xi yi zi offset x y z index\n";
+  for (auto& pos : positions) {
+    auto &c = std::get<0>(pos);
+    c[0] = std::fmod(c[0], 100.0);
+    c[1] = std::fmod(c[1], 100.0);
+    c[2] = std::fmod(c[2], 100.0);
+    outfile << " " << c[0] << " " << c[1] << " " << c[2];
+    outfile << " " << std::get<1>(pos) << " ";
+    auto &c2 = std::get<2>(pos);
+    outfile << " " << c2[0] << " " << c2[1] << " " << c2[2];
+    outfile << " " << std::get<3>(pos) << "\n";
+  }
+  outfile.close();
+}
+*/
 
 avi::DefectRes avi::atoms2defects(
     std::tuple<avi::xyzFileStatus, std::vector<avi::offsetCoords>, std::vector<std::vector<double>>> stAtoms,
@@ -458,6 +477,15 @@ avi::DefectRes avi::atoms2defects(
   bool isExtraCol = (!(std::get<2>(stAtoms)).empty() && !std::get<2>(stAtoms)[0].empty());
   bool isIncludeId = isExtraCol || info.extraColumnStart == -2;
   auto &atoms = std::get<1>(stAtoms);
+  if (info.ncellX > 0 || info.ncellY > 0 || info.ncellZ > 0) { // wrapping around boundary
+    for (auto& pos : atoms) {
+      auto &c = std::get<0>(pos);
+      if (info.ncellX > 0) c[0] = std::fmod(c[0], info.ncellX);
+      if (info.ncellY > 0) c[1] = std::fmod(c[1], info.ncellY);
+      if (info.ncellZ > 0) c[2] = std::fmod(c[2], info.ncellZ);
+    }
+  }
+  //writeXyz("./atomWithOffsets.xyz", atoms);
   std::sort(begin(atoms), end(atoms));
   // std::cout << "\natoms: " << std::get<0>(atoms[0])[0] << " | " << std::get<0>(atoms[atoms.size() - 1])[0] << '\n';
   const auto minmax = std::minmax_element(
@@ -502,6 +530,7 @@ avi::DefectRes avi::atoms2defects(
     double curOffset = get<1>(row);
     Coords c = std::get<2>(row);
     size_t id = std::get<3>(row);
+    //auto tcur = nextExpected.cur();
     const auto cmpRes = cmpApprox(ar, nextExpected.cur());
     if (nextExpected.allMax()) break;
     // threshold
