@@ -83,10 +83,15 @@ std::pair<avi::ErrorStatus,int> avi::processFileTimeCmd(std::string xyzfileName,
   return std::make_pair(avi::ErrorStatus::unknownError, 0);
 }
 
-inline int countDefects(const avi::DefectVecT &defects) {
-  return std::count_if(begin(defects), end(defects), [](const auto &x) {
-    return avi::DefectTWrap::isSurviving(x) && avi::DefectTWrap::isInterstitial(x);
-  });
+inline std::pair<int, int> countDefects(const avi::DefectVecT &defects) {
+  return std::make_pair(
+    std::count_if(begin(defects), end(defects), [](const auto &x) {
+      return avi::DefectTWrap::isSurviving(x) && avi::DefectTWrap::isInterstitial(x);
+    }), 
+    std::count_if(begin(defects), end(defects), [](const auto &x) {
+      return avi::DefectTWrap::isSurviving(x) && !avi::DefectTWrap::isInterstitial(x);
+    })
+  );
 }
 
 std::pair<avi::xyzFileStatus, avi::ErrorStatus> 
@@ -104,9 +109,8 @@ std::pair<avi::xyzFileStatus, avi::ErrorStatus>
   if (res.err != avi::ErrorStatus::noError) return std::make_pair(fl, res.err);
   if (config.onlyDefects) {
     if (!isFirst) outfile << "\n,";
-    res.nDefects = countDefects(res.defects);
-    res.nSia = res.nDefects;
-    res.nVac = res.nDefects;
+    std::tie(res.nSia, res.nVac) = countDefects(res.defects);
+    res.nDefects = res.nSia;
     avi::printJson(outfile, info, extraInfo, res);
     return std::make_pair(fl, res.err);
   }
